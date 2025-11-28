@@ -837,6 +837,10 @@ _CONFIGS = [
             repo_id="skybhh19/lerobot_robomimic_square_ph",
             base_config=DataConfig(prompt_from_task=True),
             extra_delta_transform=False,
+            assets=AssetsConfig(
+                assets_dir="/iris/u/tiangao/projects/openpi/assets/pi05_robomimic_square",
+                asset_id="skybhh19/lerobot_robomimic_square_ph",
+            ),
         ),
         batch_size=128,
         lr_schedule=_optimizer.CosineDecaySchedule(
