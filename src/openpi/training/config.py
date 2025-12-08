@@ -863,6 +863,10 @@ _CONFIGS = [
             repo_id="skybhh19/lerobot_robomimic_square_ph",
             base_config=DataConfig(prompt_from_task=True),
             extra_delta_transform=False,
+            assets=AssetsConfig(
+                assets_dir="/iris/u/tiangao/projects/openpi/assets/pi05_robomimic_square",
+                asset_id="skybhh19/lerobot_robomimic_square_ph",
+            ),
         ),
         batch_size=128,
         lr_schedule=_optimizer.CosineDecaySchedule(
@@ -873,7 +877,7 @@ _CONFIGS = [
         ),
         optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
         ema_decay=0.999,
-        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/iris/u/tiangao/projects/openpi/checkpoints/pi05_robomimic_square/test_robomimic_square/10000/params"),
         pytorch_weight_path="/path/to/your/pytorch_weight_path",
         num_train_steps=300_000,
         keep_period=50_000,
