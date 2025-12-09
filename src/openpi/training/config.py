@@ -902,6 +902,30 @@ _CONFIGS = [
         ema_decay=None,
         keep_period=5_000,
     ),
+    TrainConfig(
+        name="pi05_robomimic_square_low_mem_finetune_expo",
+        # Here is an example of loading a pi0 model for LoRA fine-tuning.
+        model=pi0_config.Pi0Config(pi05=True, action_horizon=10, discrete_state_input=False, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"),
+        data=LeRobotRobomimicDataConfig(
+            repo_id="skybhh19/lerobot_robomimic_square_ph",
+            base_config=DataConfig(prompt_from_task=True),
+            extra_delta_transform=False,
+            assets=AssetsConfig(
+                assets_dir="/iris/u/tiangao/projects/openpi/assets/pi05_robomimic_square_low_mem_finetune",
+                asset_id="skybhh19/lerobot_robomimic_square_ph",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/iris/u/tiangao/projects/openpi/checkpoints/pi05_robomimic_square_low_mem_finetune/test_robomimic_square_lora/9000/params"),
+        num_train_steps=1_000_000,
+        # The freeze filter defines which parameters should be frozen during training.
+        # We have a convenience function in the model config that returns the default freeze filter
+        # for the given model config for LoRA finetuning. Just make sure it matches the model config
+        # you chose above.
+        freeze_filter=pi0_config.Pi0Config(pi05=True, action_horizon=10, discrete_state_input=False, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora").get_freeze_filter(),
+        # Turn off EMA for LoRA finetuning.
+        ema_decay=None,
+        keep_period=5_000,
+    ),
     #
     # Fine-tuning Aloha configs.
     #

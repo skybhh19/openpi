@@ -62,7 +62,8 @@ class Policy(BasePolicy):
         else:
             # JAX model setup
             self._sample_actions = nnx_utils.module_jit(model.sample_actions)
-            self._rng = rng or jax.random.key(0)
+            # self._rng = rng or jax.random.key(0)
+            self._rng = rng if rng is not None else jax.random.key(0)
 
     @override
     def infer(self, obs: dict, *, noise: np.ndarray | None = None, is_batch: bool = False, for_training: bool = False) -> dict:  # type: ignore[misc]
