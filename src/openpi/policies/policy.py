@@ -65,7 +65,7 @@ class Policy(BasePolicy):
             self._rng = rng or jax.random.key(0)
 
     @override
-    def infer(self, obs: dict, *, noise: np.ndarray | None = None, is_batch: bool = False) -> dict:  # type: ignore[misc]
+    def infer(self, obs: dict, *, noise: np.ndarray | None = None, is_batch: bool = False, for_training: bool = False) -> dict:  # type: ignore[misc]
         # Make a copy since transformations may modify the inputs in place.
         inputs = jax.tree.map(lambda x: x, obs)
         inputs = self._input_transform(inputs)
@@ -100,16 +100,22 @@ class Policy(BasePolicy):
             "actions": self._sample_actions(sample_rng_or_pytorch_device, observation, **sample_kwargs),
         }
         model_time = time.monotonic() - start_time
-        if self._is_pytorch_model:
+        if for_training:
             if not is_batch:
-                outputs = jax.tree.map(lambda x: np.asarray(x[0, ...].detach().cpu()), outputs)
+                outputs = jax.tree.map(lambda x: jnp.asarray(x[0, ...]), outputs)
             else:
-                outputs = jax.tree.map(lambda x: np.asarray(x.detach().cpu()), outputs)
+                outputs = jax.tree.map(lambda x: jnp.asarray(x), outputs)
         else:
-            if not is_batch:
-                outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
+            if self._is_pytorch_model:
+                if not is_batch:
+                    outputs = jax.tree.map(lambda x: np.asarray(x[0, ...].detach().cpu()), outputs)
+                else:
+                    outputs = jax.tree.map(lambda x: np.asarray(x.detach().cpu()), outputs)
             else:
-                outputs = jax.tree.map(lambda x: np.asarray(x), outputs)
+                if not is_batch:
+                    outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
+                else:
+                    outputs = jax.tree.map(lambda x: np.asarray(x), outputs)
 
         outputs = self._output_transform(outputs)
         outputs["policy_timing"] = {
