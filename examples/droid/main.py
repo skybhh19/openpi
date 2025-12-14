@@ -31,9 +31,10 @@ class Args:
     wrist_camera_id: str = "<your_camera_id>"  # e.g., "13062452"
 
     # Policy parameters
-    external_camera: str | None = (
-        None  # which external camera should be fed to the policy, choose from ["left", "right"]
-    )
+    external_camera: str = "left"  # which external camera should be fed to the policy, choose from ["left", "right"]
+
+    # Language instruction
+    instruction: str = ""  # Language instruction for the task. If empty, will prompt for input.
 
     # Rollout parameters
     max_timesteps: int = 600
@@ -86,7 +87,12 @@ def main(args: Args):
     df = pd.DataFrame(columns=["success", "duration", "video_filename"])
 
     while True:
-        instruction = input("Enter instruction: ")
+        # Use provided instruction or prompt for input if empty
+        if not args.instruction:
+            instruction = input("Enter instruction: ")
+        else:
+            instruction = args.instruction
+            print(f"Using instruction: {instruction}")
 
         # Rollout parameters
         actions_from_chunk_completed = 0
@@ -131,7 +137,8 @@ def main(args: Args):
                     with prevent_keyboard_interrupt():
                         # this returns action chunk [10, 8] of 10 joint velocity actions (7) + gripper position (1)
                         pred_action_chunk = policy_client.infer(request_data)["actions"]
-                    assert pred_action_chunk.shape == (10, 8)
+                    print(f"Predicted action chunk shape: {pred_action_chunk.shape}")
+                    # assert pred_action_chunk.shape == (15, 8)
 
                 # Select current action to execute from chunk
                 action = pred_action_chunk[actions_from_chunk_completed]
@@ -201,11 +208,15 @@ def _extract_observation(args: Args, obs_dict, *, save_to_disk=False):
     for key in image_observations:
         # Note the "left" below refers to the left camera in the stereo pair.
         # The model is only trained on left stereo cams, so we only feed those.
+        # left and right is the same camera, so we only need to check one of them
         if args.left_camera_id in key and "left" in key:
             left_image = image_observations[key]
-        elif args.right_camera_id in key and "left" in key:
+        if args.right_camera_id in key and "left" in key:
             right_image = image_observations[key]
-        elif args.wrist_camera_id in key and "left" in key:
+        # if args.wrist_camera_id in key and "left" in key:
+        #     wrist_image = image_observations[key]
+        # use realsense for now
+        if args.wrist_camera_id in key:
             wrist_image = image_observations[key]
 
     # Drop the alpha dimension
@@ -218,6 +229,11 @@ def _extract_observation(args: Args, obs_dict, *, save_to_disk=False):
     right_image = right_image[..., ::-1]
     wrist_image = wrist_image[..., ::-1]
 
+    # resize to (180, 320, 3)
+    left_image = image_tools.resize_with_pad(left_image, 180, 320)
+    right_image = image_tools.resize_with_pad(right_image, 180, 320)
+    wrist_image = image_tools.resize_with_pad(wrist_image, 180, 320)
+    
     # In addition to image observations, also capture the proprioceptive state
     robot_state = obs_dict["robot_state"]
     cartesian_position = np.array(robot_state["cartesian_position"])
