@@ -78,8 +78,10 @@ def main(args: Args):
     ), f"Please specify an external camera to use for the policy, choose from ['left', 'right'], but got {args.external_camera}"
 
     # Initialize the Panda environment. Using joint velocity action space and gripper position action space is very important.
-    env = RobotEnv(action_space="joint_velocity", gripper_action_space="position")
+    env = RobotEnv(action_space="joint_velocity", gripper_action_space="position", reset_joints=np.array([-0.009262563660740852, 0.24298158288002014, -0.009937320835888386, -2.193242311477661, -0.05267836153507233, 2.4398856163024902, -0.029012419283390045]))
     print("Created the droid env!")
+
+    env.reset()
 
     # Connect to the policy server
     policy_client = websocket_client_policy.WebsocketClientPolicy(args.remote_host, args.remote_port)
@@ -177,22 +179,23 @@ def main(args: Args):
                 success = 1.0
             elif success == "n":
                 success = 0.0
+            else:
+                success = 0.0
 
             success = float(success) / 100
             if not (0 <= success <= 1):
                 print(f"Success must be a number in [0, 100] but got: {success * 100}")
 
-        df = df.append(
-            {
-                "success": success,
-                "duration": t_step,
-                "video_filename": save_filename,
-            },
-            ignore_index=True,
-        )
+        new_row = pd.DataFrame([{
+            "success": success,
+            "duration": t_step,
+            "video_filename": save_filename,
+        }])
+        df = pd.concat([df, new_row], ignore_index=True)
 
         if input("Do one more eval? (enter y or n) ").lower() != "y":
             break
+        env.reset()
         env.reset()
 
     os.makedirs("results", exist_ok=True)
