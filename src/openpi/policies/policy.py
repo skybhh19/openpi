@@ -61,8 +61,12 @@ class Policy(BasePolicy):
             self._sample_actions = model.sample_actions
         else:
             # JAX model setup
-            self._sample_actions = nnx_utils.module_jit(model.sample_actions)
+            # self._sample_actions = nnx_utils.module_jit(model.sample_actions)
             # self._rng = rng or jax.random.key(0)
+            self._sample_actions = nnx_utils.module_jit(
+                model.sample_actions,
+                static_argnames=['train', 'num_samples', 'num_steps']
+            )
             self._rng = rng if rng is not None else jax.random.key(0)
 
     @override
