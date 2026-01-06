@@ -915,13 +915,13 @@ _CONFIGS = [
                 asset_id="skybhh19/lerobot_robomimic_square_ph",
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/iris/u/tiangao/projects/openpi/checkpoints/pi05_robomimic_square_low_mem_finetune/test_robomimic_square_lora/9000/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/iris/u/tiangao/projects/openpi/checkpoints/pi05_robomimic_square_low_mem_finetune/test_robomimic_square_lora/3000/params"),
         num_train_steps=1_000_000,        
         lr_schedule=_optimizer.CosineDecaySchedule(
             warmup_steps=0,
-            peak_lr=2.5e-5,  # Change this value to adjust the learning rate
-            decay_steps=100_000,
-            decay_lr=2.5e-5,
+            peak_lr=4e-5,  # Change this value to adjust the learning rate
+            decay_steps=1_000_000,
+            decay_lr=4e-5,
         ),
         # The freeze filter defines which parameters should be frozen during training.
         # We have a convenience function in the model config that returns the default freeze filter
