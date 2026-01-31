@@ -16,18 +16,34 @@ source /iris/u/khhung/projects/openpi/.venv/bin/activate
 
 echo "Starting training"
 
+# uv run scripts/train.py pi05_droid_lora_finetune \
+#     --exp-name=droid_ppv2_5 \
+#     --overwrite \
+#     --data.repo_id="johnson906/droid_ppv2_5" \
+#     --num_train_steps=5001 \
+#     --save_interval=1000 \
+#     --fsdp_devices=1
+    
+# uv run scripts/train.py pi05_droid_lora_finetune \
+#     --exp-name=droid_ppv2_3 \
+#     --overwrite \
+#     --data.repo_id="johnson906/droid_ppv2_3" \
+#     --num_train_steps=5001 \
+#     --save_interval=1000 \
+#     --fsdp_devices=1
+
 uv run scripts/train.py pi05_droid_lora_finetune \
-    --exp-name=pp_3 \
+    --exp-name=droid_ppv2_2 \
     --overwrite \
-    --data.repo_id="johnson906/droid_pp_3" \
-    --num_train_steps=5001 \
+    --data.repo_id="johnson906/droid_ppv2_1" \
+    --num_train_steps=2001 \
     --save_interval=1000 \
     --fsdp_devices=1
 
 # uv run scripts/train.py pi05_droid_lora_finetune \
-#     --exp-name=pp_3 \
+#     --exp-name=droid_ppv2_1 \
 #     --overwrite \
-#     --data.repo_id="johnson906/droid_pp_3" \
+#     --data.repo_id="johnson906/droid_ppv2_1" \
 #     --num_train_steps=5001 \
 #     --save_interval=1000 \
 #     --fsdp_devices=1

@@ -7,6 +7,6 @@ python3 examples/droid/main.py \
     --external_camera="left" \
     --left_camera_id=27904255_left \
     --right_camera_id=27904255_left \
-    --wrist_camera_id=332322070159 \
-    --instruction="pick up the cube and place in the box" \
-    --max_timesteps=150
+    --wrist_camera_id=12841040_left \
+    --instruction="pick up the red block and blue block and place them in the box" \
+    --max_timesteps=400

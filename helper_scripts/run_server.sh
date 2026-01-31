@@ -8,7 +8,12 @@ source /iris/u/khhung/projects/openpi/.venv/bin/activate
 #     --policy.config=pi05_droid_finetune_pp \
 #     --policy.dir=./checkpoints/pi05_droid_finetune/pp/1000
 
-# Alternative: run zero-shot inference with base model
+# # Alternative: run zero-shot inference with base model
 uv run scripts/serve_policy.py policy:checkpoint \
     --policy.config=pi05_droid_lora_finetune_pp \
-    --policy.dir=/iris/u/khhung/projects/openpi/checkpoints/pi05_droid_lora_finetune/pp_1/5000
+    --policy.dir=/iris/u/khhung/projects/openpi/checkpoints/pi05_droid_lora_finetune/droid_ppv2_1/3000
+
+# Alternative: run zero-shot inference with base model
+# uv run scripts/serve_policy.py policy:checkpoint \
+#     --policy.config=pi05_droid \
+#     --policy.dir=gs://openpi-assets/checkpoints/pi05_droid
