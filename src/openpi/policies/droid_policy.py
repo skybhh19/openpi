@@ -76,6 +76,13 @@ class DroidInputs(transforms.DataTransformFn):
 
 @dataclasses.dataclass(frozen=True)
 class DroidOutputs(transforms.DataTransformFn):
+    """Output transform that returns the first `action_dim` action dimensions.
+
+    Use action_dim=8 for joint velocity (7 joint + 1 gripper), action_dim=7 for
+    cartesian velocity (6D + 1 gripper).
+    """
+
+    action_dim: int = 8
+
     def __call__(self, data: dict) -> dict:
-        # Only return the first 8 dims.
-        return {"actions": np.asarray(data["actions"][:, :8])}
+        return {"actions": np.asarray(data["actions"][:, : self.action_dim])}

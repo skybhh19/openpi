@@ -499,6 +499,10 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
     To convert your custom DROID dataset (<10s of hours) to LeRobot format, see examples/droid/convert_droid_data_to_lerobot.py
     """
 
+    # Number of action dimensions to use from the model output. Use 8 for joint velocity (7 joint + 1 gripper),
+    # 7 for cartesian velocity (6D + 1 gripper).
+    output_action_dim: int = 8
+
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         repack_transform = _transforms.Group(
@@ -519,7 +523,7 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
         # We assume joint *velocity* actions, so we should *not* apply an additional delta transform.
         data_transforms = _transforms.Group(
             inputs=[droid_policy.DroidInputs(model_type=model_config.model_type)],
-            outputs=[droid_policy.DroidOutputs()],
+            outputs=[droid_policy.DroidOutputs(action_dim=self.output_action_dim)],
         )
         model_transforms = ModelTransformFactory()(model_config)
 
@@ -1029,68 +1033,108 @@ _CONFIGS = [
         keep_period=20_000,
         num_workers=0,  # Important: RLDS DataLoader requires num_workers=0, handles multi-processing internally
     ),
-    TrainConfig(
-        # This config is for fine-tuning pi05 on the *full* DROID dataset.
-        # We use RLDS data loading to make training on this large dataset tractable.
-        # For fine-tuning on your own DROID dataset, see below.
-        name="pi05_full_droid_finetune",
-        model=pi0_config.Pi0Config(
-            pi05=True,
-            action_dim=32,
-            action_horizon=16,
-        ),
-        data=RLDSDroidDataConfig(
-            repo_id="droid",
-            # Set this to the path to your DROID RLDS dataset (the parent directory of the `droid` directory).
-            rlds_data_dir="/mnt/pi-data/kevin",
-            action_space=droid_rlds_dataset.DroidActionSpace.JOINT_POSITION,
-            assets=AssetsConfig(
-                assets_dir="gs://openpi-assets/checkpoints/pi05_base/assets/",
-                asset_id="droid",
-            ),
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
-        lr_schedule=_optimizer.CosineDecaySchedule(
-            warmup_steps=1_000,
-            peak_lr=5e-5,
-            decay_steps=1_000_000,
-            decay_lr=5e-5,
-        ),
-        num_train_steps=100_000,
-        batch_size=256,
-        log_interval=100,
-        save_interval=5000,
-        keep_period=10_000,
-        num_workers=0,  # Important: RLDS DataLoader requires num_workers=0, handles multi-processing internally
-    ),
-    TrainConfig(
-        # This config is for fine-tuning pi05-DROID on a custom (smaller) DROID dataset.
-        # Here, we use LeRobot data format (like for all other fine-tuning examples)
-        # To convert your custom DROID dataset (<10s of hours) to LeRobot format, see examples/droid/convert_droid_data_to_lerobot.py
-        name="pi05_droid_finetune",
-        model=pi0_config.Pi0Config(
-            pi05=True,
-            action_dim=32,  # pi05 is trained with 32-dim actions
-            action_horizon=16,
-        ),
-        data=LeRobotDROIDDataConfig(
-            # Replace with your custom DROID LeRobot dataset repo id.
-            repo_id="your_hf_username/my_droid_dataset",
-            base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(
-                # Important: reuse the original DROID norm stats during fine-tuning!
-                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
-                asset_id="droid",
-            ),
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
-        num_train_steps=20_000,
-        batch_size=32,
-    ),
+    # TrainConfig(
+    #     # This config is for fine-tuning pi05 on the *full* DROID dataset.
+    #     # We use RLDS data loading to make training on this large dataset tractable.
+    #     # For fine-tuning on your own DROID dataset, see below.
+    #     name="pi05_full_droid_finetune",
+    #     model=pi0_config.Pi0Config(
+    #         pi05=True,
+    #         action_dim=32,
+    #         action_horizon=16,
+    #     ),
+    #     data=RLDSDroidDataConfig(
+    #         repo_id="droid",
+    #         # Set this to the path to your DROID RLDS dataset (the parent directory of the `droid` directory).
+    #         rlds_data_dir="/mnt/pi-data/kevin",
+    #         action_space=droid_rlds_dataset.DroidActionSpace.JOINT_POSITION,
+    #         assets=AssetsConfig(
+    #             assets_dir="gs://openpi-assets/checkpoints/pi05_base/assets/",
+    #             asset_id="droid",
+    #         ),
+    #     ),
+    #     weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+    #     lr_schedule=_optimizer.CosineDecaySchedule(
+    #         warmup_steps=1_000,
+    #         peak_lr=5e-5,
+    #         decay_steps=1_000_000,
+    #         decay_lr=5e-5,
+    #     ),
+    #     num_train_steps=100_000,
+    #     batch_size=256,
+    #     log_interval=100,
+    #     save_interval=5000,
+    #     keep_period=10_000,
+    #     num_workers=0,  # Important: RLDS DataLoader requires num_workers=0, handles multi-processing internally
+    # ),
+    # TrainConfig(
+    #     # This config is for fine-tuning pi05-DROID on a custom (smaller) DROID dataset.
+    #     # Here, we use LeRobot data format (like for all other fine-tuning examples)
+    #     # To convert your custom DROID dataset (<10s of hours) to LeRobot format, see examples/droid/convert_droid_data_to_lerobot.py
+    #     name="pi05_droid_finetune",
+    #     model=pi0_config.Pi0Config(
+    #         pi05=True,
+    #         action_dim=32,  # pi05 is trained with 32-dim actions
+    #         action_horizon=16,
+    #     ),
+    #     data=LeRobotDROIDDataConfig(
+    #         # Replace with your custom DROID LeRobot dataset repo id.
+    #         repo_id="your_hf_username/my_droid_dataset",
+    #         base_config=DataConfig(prompt_from_task=True),
+    #         assets=AssetsConfig(
+    #             # Important: reuse the original DROID norm stats during fine-tuning!
+    #             assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+    #             asset_id="droid",
+    #         ),
+    #     ),
+    #     weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+    #     num_train_steps=20_000,
+    #     batch_size=32,
+    # ),
+    # TrainConfig(
+    #     # This config is for LoRA fine-tuning pi05-DROID on a custom (smaller) DROID dataset.
+    #     # LoRA fine-tuning uses less memory by only training adapter layers.
+    #     name="pi05_droid_lora_finetune",
+    #     model=pi0_config.Pi0Config(
+    #         pi05=True,
+    #         action_dim=32,  # pi05 is trained with 32-dim actions
+    #         action_horizon=16,
+    #         paligemma_variant="gemma_2b_lora",
+    #         action_expert_variant="gemma_300m_lora",
+    #     ),
+    #     data=LeRobotDROIDDataConfig(
+    #         # Replace with your custom DROID LeRobot dataset repo id.
+    #         repo_id="your_hf_username/my_droid_dataset",
+    #         base_config=DataConfig(prompt_from_task=True),
+    #         assets=AssetsConfig(
+    #             # Important: reuse the original DROID norm stats during fine-tuning!
+    #             assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+    #             asset_id="droid",
+    #         ),
+    #     ),
+    #     weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+    #     num_train_steps=20_000,
+    #     batch_size=32,
+    #     # The freeze filter defines which parameters should be frozen during training.
+    #     # We have a convenience function in the model config that returns the default freeze filter
+    #     # for the given model config for LoRA finetuning. Just make sure it matches the model config
+    #     # you chose above.
+    #     freeze_filter=pi0_config.Pi0Config(
+    #         pi05=True,
+    #         action_dim=32,
+    #         action_horizon=16,
+    #         paligemma_variant="gemma_2b_lora",
+    #         action_expert_variant="gemma_300m_lora",
+    #     ).get_freeze_filter(),
+    #     # Turn off EMA for LoRA finetuning.
+    #     ema_decay=None,
+    # ),
+
+    # For real world sft and rl
     TrainConfig(
         # This config is for LoRA fine-tuning pi05-DROID on a custom (smaller) DROID dataset.
         # LoRA fine-tuning uses less memory by only training adapter layers.
-        name="pi05_droid_lora_finetune",
+        name="expo_pi05_droid_lora_finetune_sft",
         model=pi0_config.Pi0Config(
             pi05=True,
             action_dim=32,  # pi05 is trained with 32-dim actions
@@ -1099,22 +1143,27 @@ _CONFIGS = [
             action_expert_variant="gemma_300m_lora",
         ),
         data=LeRobotDROIDDataConfig(
-            # Replace with your custom DROID LeRobot dataset repo id.
-            repo_id="your_hf_username/my_droid_dataset",
+            # repo_id should be input
+            repo_id="",
+            output_action_dim=7,  # cartesian velocity (6D + 1 gripper)
             base_config=DataConfig(prompt_from_task=True),
             assets=AssetsConfig(
-                # Important: reuse the original DROID norm stats during fine-tuning!
-                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
-                asset_id="droid",
+                # Replace with your custom DROID LeRobot dataset repo id.
+                # CHANGE THIS TO THE REPO ID OF THE DROID DATASET YOU ARE USING
+                assets_dir="/iris/u/khhung/projects/openpi/assets/expo_pi05_droid_lora_finetune_sft",
+                asset_id="johnson906/droid_ppv2_50_cartesian_same_pos",
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        # train from scratch for now, should change when having droid on cartesian velocity
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         num_train_steps=20_000,
         batch_size=32,
-        # The freeze filter defines which parameters should be frozen during training.
-        # We have a convenience function in the model config that returns the default freeze filter
-        # for the given model config for LoRA finetuning. Just make sure it matches the model config
-        # you chose above.
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=0,
+            peak_lr=2.5e-5,  # Change this value to adjust the learning rate
+            decay_steps=100_000,
+            decay_lr=2.5e-5,
+        ),
         freeze_filter=pi0_config.Pi0Config(
             pi05=True,
             action_dim=32,
@@ -1125,33 +1174,10 @@ _CONFIGS = [
         # Turn off EMA for LoRA finetuning.
         ema_decay=None,
     ),
-    # TrainConfig(
-    #     # This config is for inference with pi05-DROID finetuned on custom DROID dataset (droid_pp).
-    #     # For inference, use: create_trained_policy(config, checkpoint_dir) where checkpoint_dir points to your finetuned checkpoint.
-    #     # Example: ./checkpoints/pi05_droid_finetune/pp/1000 or ./checkpoints/pi05_droid_finetune/pp/2000
-    #     name="pi05_droid_finetune_pp",
-    #     model=pi0_config.Pi0Config(
-    #         pi05=True,
-    #         action_dim=32,  # pi05 is trained with 32-dim actions
-    #         action_horizon=16,
-    #     ),
-    #     data=LeRobotDROIDDataConfig(
-    #         repo_id="johnson906/droid_pp",
-    #         base_config=DataConfig(prompt_from_task=True),
-    #         assets=AssetsConfig(
-    #             # Important: reuse the original DROID norm stats during fine-tuning!
-    #             assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
-    #             asset_id="droid",
-    #         ),
-    #     ),
-    #     weight_loader=weight_loaders.CheckpointWeightLoader("/iris/u/khhung/projects/openpi/checkpoints/pi05_droid_finetune/pp_1/1000/params"),
-    #     num_train_steps=20_000,
-    #     batch_size=32,
-    # ),
     TrainConfig(
         # This config is for LoRA fine-tuning pi05-DROID on a custom (smaller) DROID dataset.
         # LoRA fine-tuning uses less memory by only training adapter layers.
-        name="pi05_droid_lora_finetune_pp",
+        name="expo_pi05_droid_lora_finetune_rl",
         model=pi0_config.Pi0Config(
             pi05=True,
             action_dim=32,  # pi05 is trained with 32-dim actions
@@ -1160,16 +1186,18 @@ _CONFIGS = [
             action_expert_variant="gemma_300m_lora",
         ),
         data=LeRobotDROIDDataConfig(
-            # Replace with your custom DROID LeRobot dataset repo id.
-            repo_id="johnson906/droid_pp_1",
+            # repo_id should be input
+            repo_id="",
+            output_action_dim=7,  # cartesian velocity (6D + 1 gripper)
             base_config=DataConfig(prompt_from_task=True),
             assets=AssetsConfig(
-                # Important: reuse the original DROID norm stats during fine-tuning!
-                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
-                asset_id="droid",
+                # Replace with your custom DROID LeRobot dataset repo id.
+                # CHANGE THIS TO THE REPO ID OF THE DROID DATASET YOU ARE USING
+                assets_dir="/iris/u/khhung/projects/openpi/assets/expo_pi05_droid_lora_finetune_sft",
+                asset_id="johnson906/droid_ppv2_50_cartesian_same_pos",
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/iris/u/khhung/projects/openpi/checkpoints/pi05_droid_lora_finetune/pp_1/5000/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         num_train_steps=1_000_000, 
         batch_size=32,       
         lr_schedule=_optimizer.CosineDecaySchedule(
@@ -1178,11 +1206,13 @@ _CONFIGS = [
             decay_steps=100_000,
             decay_lr=2.5e-5,
         ),
-        # The freeze filter defines which parameters should be frozen during training.
-        # We have a convenience function in the model config that returns the default freeze filter
-        # for the given model config for LoRA finetuning. Just make sure it matches the model config
-        # you chose above.
-        freeze_filter=pi0_config.Pi0Config(pi05=True, action_horizon=10, discrete_state_input=False, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora").get_freeze_filter(),
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=16,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+        ).get_freeze_filter(),
         # Turn off EMA for LoRA finetuning.
         ema_decay=None,
         keep_period=5_000,
@@ -1251,11 +1281,20 @@ def cli() -> TrainConfig:
     return tyro.extras.overridable_config_cli({k: (k, v) for k, v in _CONFIGS_DICT.items()})
 
 
-def get_config(config_name: str) -> TrainConfig:
-    """Get a config by name."""
+def get_config(
+    config_name: str,
+    weight_loader_path: str | None = None,
+) -> TrainConfig:
+    """Get a config by name. If weight_loader_path is set, overrides the config's weight_loader."""
     if config_name not in _CONFIGS_DICT:
         closest = difflib.get_close_matches(config_name, _CONFIGS_DICT.keys(), n=1, cutoff=0.0)
         closest_str = f" Did you mean '{closest[0]}'? " if closest else ""
         raise ValueError(f"Config '{config_name}' not found.{closest_str}")
 
-    return _CONFIGS_DICT[config_name]
+    config = _CONFIGS_DICT[config_name]
+    if weight_loader_path is not None:
+        config = dataclasses.replace(
+            config,
+            weight_loader=weight_loaders.CheckpointWeightLoader(weight_loader_path),
+        )
+    return config
