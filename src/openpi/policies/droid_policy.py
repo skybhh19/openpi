@@ -7,12 +7,18 @@ from openpi import transforms
 from openpi.models import model as _model
 
 
-def make_droid_example() -> dict:
-    """Creates a random input example for the Droid policy."""
+def make_droid_example(*, use_cartesian_state: bool = False) -> dict:
+    """Creates a random input example for the Droid policy.
+
+    use_cartesian_state: if True, include observation/cartesian_position (6 dims: x,y,z + euler).
+    Else observation/joint_position (7 joint dims). Gripper is always observation/gripper_position.
+    """
+    state_key = "observation/cartesian_position" if use_cartesian_state else "observation/joint_position"
+    pose_dim = 6 if use_cartesian_state else 7  # cartesian: 6 (3 pos + 3 euler); joint: 7
     return {
         "observation/exterior_image_1_left": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
         "observation/wrist_image_left": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
-        "observation/joint_position": np.random.rand(7),
+        state_key: np.random.rand(pose_dim),
         "observation/gripper_position": np.random.rand(1),
         "prompt": "do something",
     }
@@ -35,9 +41,13 @@ class DroidInputs(transforms.DataTransformFn):
     def __call__(self, data: dict) -> dict:
         gripper_pos = np.asarray(data["observation/gripper_position"])
         if gripper_pos.ndim == 0:
-            # Ensure gripper position is a 1D array, not a scalar, so we can concatenate with joint positions
             gripper_pos = gripper_pos[np.newaxis]
-        state = np.concatenate([data["observation/joint_position"], gripper_pos])
+        # Support either joint (7d) or cartesian (e.g. 6d pose) as state; cartesian is used when present.
+        if "observation/cartesian_position" in data:
+            pose = np.asarray(data["observation/cartesian_position"]).flatten()
+            state = np.concatenate([pose, gripper_pos])
+        else:
+            state = np.concatenate([data["observation/joint_position"], gripper_pos])
 
         # Possibly need to parse images to uint8 (H,W,C) since LeRobot automatically
         # stores as float32 (C,H,W), gets skipped for policy inference

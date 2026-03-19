@@ -133,7 +133,7 @@ def main(args: Args):
                             curr_obs[f"{args.external_camera}_image"], 224, 224
                         ),
                         "observation/wrist_image_left": image_tools.resize_with_pad(curr_obs["wrist_image"], 224, 224),
-                        "observation/joint_position": curr_obs["joint_position"],
+                        "observation/cartesian_position": curr_obs["cartesian_position"],
                         "observation/gripper_position": curr_obs["gripper_position"],
                         "prompt": instruction,
                     }

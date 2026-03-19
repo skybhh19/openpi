@@ -109,6 +109,7 @@ class ModelTransformFactory(GroupFactory):
 
     # If provided, will determine the default prompt that be used by the model.
     default_prompt: str | None = None
+    image_resize: int = 224
 
     def __call__(self, model_config: _model.BaseModelConfig) -> _transforms.Group:
         match model_config.model_type:
@@ -116,7 +117,7 @@ class ModelTransformFactory(GroupFactory):
                 return _transforms.Group(
                     inputs=[
                         _transforms.InjectDefaultPrompt(self.default_prompt),
-                        _transforms.ResizeImages(224, 224),
+                        _transforms.ResizeImages(self.image_resize, self.image_resize),
                         _transforms.TokenizePrompt(
                             _tokenizer.PaligemmaTokenizer(model_config.max_token_len),
                         ),
@@ -128,7 +129,7 @@ class ModelTransformFactory(GroupFactory):
                 return _transforms.Group(
                     inputs=[
                         _transforms.InjectDefaultPrompt(self.default_prompt),
-                        _transforms.ResizeImages(224, 224),
+                        _transforms.ResizeImages(self.image_resize, self.image_resize),
                         _transforms.TokenizePrompt(
                             _tokenizer.PaligemmaTokenizer(model_config.max_token_len),
                             discrete_state_input=model_config.discrete_state_input,
@@ -148,7 +149,7 @@ class ModelTransformFactory(GroupFactory):
                 return _transforms.Group(
                     inputs=[
                         _transforms.InjectDefaultPrompt(self.default_prompt),
-                        _transforms.ResizeImages(224, 224),
+                        _transforms.ResizeImages(self.image_resize, self.image_resize),
                         _transforms.TokenizeFASTInputs(
                             tokenizer_cls(model_config.max_token_len, **tokenizer_kwargs),
                         ),
@@ -364,6 +365,7 @@ class LeRobotRobomimicDataConfig(DataConfigFactory):
     """
 
     extra_delta_transform: bool = False
+    model_image_resize: int = 224
 
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
@@ -421,7 +423,9 @@ class LeRobotRobomimicDataConfig(DataConfigFactory):
 
         # Model transforms include things like tokenizing the prompt and action targets
         # You do not need to change anything here for your own dataset.
-        model_transforms = ModelTransformFactory()(model_config)
+        model_transforms = ModelTransformFactory(
+            image_resize=self.model_image_resize,
+        )(model_config)
 
         # We return all data transforms for training and inference. No need to change anything here.
         return dataclasses.replace(
@@ -502,30 +506,39 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
     # Number of action dimensions to use from the model output. Use 8 for joint velocity (7 joint + 1 gripper),
     # 7 for cartesian velocity (6D + 1 gripper).
     output_action_dim: int = 8
+    # If True, state is built from observation/cartesian_position (6D pose) + gripper; else from joint_position (7D) + gripper.
+    use_cartesian_state: bool = False
+    # Output image size (H, W) from model transforms. Override via train config so buffer and transform match (e.g. 84 for RLPD).
+    model_image_resize: int = 224
 
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        # Repack only renames keys: raw observation keys -> names expected by DroidInputs.
+        # State is built in DroidInputs (pose + gripper); we only choose which pose key to pass.
+        repack_mapping = {
+            "observation/exterior_image_1_left": "exterior_image_1_left",
+            "observation/exterior_image_2_left": "exterior_image_2_left",
+            "observation/wrist_image_left": "wrist_image_left",
+            "observation/gripper_position": "gripper_position",
+            "actions": "actions",
+            "prompt": "prompt",
+        }
+        if self.use_cartesian_state:
+            repack_mapping["observation/cartesian_position"] = "cartesian_position"
+        else:
+            repack_mapping["observation/joint_position"] = "joint_position"
         repack_transform = _transforms.Group(
-            inputs=[
-                _transforms.RepackTransform(
-                    {
-                        "observation/exterior_image_1_left": "exterior_image_1_left",
-                        "observation/exterior_image_2_left": "exterior_image_2_left",
-                        "observation/wrist_image_left": "wrist_image_left",
-                        "observation/joint_position": "joint_position",
-                        "observation/gripper_position": "gripper_position",
-                        "actions": "actions",
-                        "prompt": "prompt",
-                    }
-                )
-            ]
+            inputs=[_transforms.RepackTransform(repack_mapping)]
         )
+        # DroidInputs builds state = concat(observation/cartesian_position or observation/joint_position, gripper).
         # We assume joint *velocity* actions, so we should *not* apply an additional delta transform.
         data_transforms = _transforms.Group(
             inputs=[droid_policy.DroidInputs(model_type=model_config.model_type)],
             outputs=[droid_policy.DroidOutputs(action_dim=self.output_action_dim)],
         )
-        model_transforms = ModelTransformFactory()(model_config)
+        model_transforms = ModelTransformFactory(
+            image_resize=self.model_image_resize,
+        )(model_config)
 
         return dataclasses.replace(
             self.create_base_config(assets_dirs, model_config),
@@ -1131,36 +1144,114 @@ _CONFIGS = [
     # ),
 
     # For real world sft and rl
+    # TrainConfig(
+    #     # This config is for LoRA fine-tuning pi05-DROID on a custom (smaller) DROID dataset.
+    #     # LoRA fine-tuning uses less memory by only training adapter layers.
+    #     name="expo_pi05_droid_lora_finetune_sft",
+    #     model=pi0_config.Pi0Config(
+    #         pi05=True,
+    #         action_dim=32,  # pi05 is trained with 32-dim actions
+    #         action_horizon=16,
+    #         paligemma_variant="gemma_2b_lora",
+    #         action_expert_variant="gemma_300m_lora",
+    #     ),
+    #     data=LeRobotDROIDDataConfig(
+    #         # repo_id should be input
+    #         repo_id="",
+    #         output_action_dim=7,  # cartesian velocity (6D + 1 gripper)
+    #         base_config=DataConfig(prompt_from_task=True),
+    #         assets=AssetsConfig(
+    #             # Replace with your custom DROID LeRobot dataset repo id.
+    #             # CHANGE THIS TO THE REPO ID OF THE DROID DATASET YOU ARE USING
+    #             assets_dir="/iris/u/khhung/projects/openpi/assets/expo_pi05_droid_lora_finetune_sft",
+    #             asset_id="johnson906/droid_ppv2_50_cartesian_same_pos",
+    #         ),
+    #     ),
+    #     # train from scratch for now, should change when having droid on cartesian velocity
+    #     weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+    #     num_train_steps=20_000,
+    #     batch_size=32,
+    #     lr_schedule=_optimizer.CosineDecaySchedule(
+    #         warmup_steps=0,
+    #         peak_lr=2.5e-5,  # Change this value to adjust the learning rate
+    #         decay_steps=100_000,
+    #         decay_lr=2.5e-5,
+    #     ),
+    #     freeze_filter=pi0_config.Pi0Config(
+    #         pi05=True,
+    #         action_dim=32,
+    #         action_horizon=16,
+    #         paligemma_variant="gemma_2b_lora",
+    #         action_expert_variant="gemma_300m_lora",
+    #     ).get_freeze_filter(),
+    #     # Turn off EMA for LoRA finetuning.
+    #     ema_decay=None,
+    # ),
+    # Same as expo_pi05_droid_lora_finetune_sft but state = cartesian_position (6D) + gripper. Use when observations have cartesian_position.
+    # TrainConfig(
+    #     name="expo_pi05_droid_lora_finetune_sft_cartesian_state_h1",
+    #     model=pi0_config.Pi0Config(
+    #         pi05=True,
+    #         action_dim=32,
+    #         action_horizon=1,
+    #         paligemma_variant="gemma_2b_lora",
+    #         action_expert_variant="gemma_300m_lora",
+    #     ),
+    #     data=LeRobotDROIDDataConfig(
+    #         repo_id="",
+    #         output_action_dim=7,
+    #         use_cartesian_state=True,
+    #         base_config=DataConfig(prompt_from_task=True),
+    #         assets=AssetsConfig(
+    #             # assets_dir is the base path; norm stats are loaded from assets_dir / asset_id.
+    #             assets_dir="/iris/u/khhung/projects/openpi/assets/expo_pi05_droid_lora_finetune_sft_cartesian_state",
+    #             asset_id="johnson906/droid_pick_cube_50",
+    #         ),
+    #     ),
+    #     weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+    #     num_train_steps=20_000,
+    #     batch_size=32,
+    #     lr_schedule=_optimizer.CosineDecaySchedule(
+    #         warmup_steps=0,
+    #         peak_lr=2.5e-5,
+    #         decay_steps=100_000,
+    #         decay_lr=2.5e-5,
+    #     ),
+    #     freeze_filter=pi0_config.Pi0Config(
+    #         pi05=True,
+    #         action_dim=32,
+    #         action_horizon=16,
+    #         paligemma_variant="gemma_2b_lora",
+    #         action_expert_variant="gemma_300m_lora",
+    #     ).get_freeze_filter(),
+    #     ema_decay=None,
+    # ),
     TrainConfig(
-        # This config is for LoRA fine-tuning pi05-DROID on a custom (smaller) DROID dataset.
-        # LoRA fine-tuning uses less memory by only training adapter layers.
-        name="expo_pi05_droid_lora_finetune_sft",
+        name="expo_pi05_droid_lora_finetune_sft_cartesian_state",
         model=pi0_config.Pi0Config(
             pi05=True,
-            action_dim=32,  # pi05 is trained with 32-dim actions
+            action_dim=32,
             action_horizon=16,
             paligemma_variant="gemma_2b_lora",
             action_expert_variant="gemma_300m_lora",
         ),
         data=LeRobotDROIDDataConfig(
-            # repo_id should be input
-            repo_id="",
-            output_action_dim=7,  # cartesian velocity (6D + 1 gripper)
+            repo_id="", #"johnson906/droid_eggflip_50",
+            output_action_dim=7,
+            use_cartesian_state=True,
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(
-                # Replace with your custom DROID LeRobot dataset repo id.
-                # CHANGE THIS TO THE REPO ID OF THE DROID DATASET YOU ARE USING
-                assets_dir="/iris/u/khhung/projects/openpi/assets/expo_pi05_droid_lora_finetune_sft",
-                asset_id="johnson906/droid_ppv2_50_cartesian_same_pos",
-            ),
+            # assets=AssetsConfig(
+            #     # assets_dir is the base path; norm stats are loaded from assets_dir / asset_id.
+            #     assets_dir="/iris/u/khhung/projects/openpi/assets/expo_pi05_droid_lora_finetune_sft_cartesian_state",
+            #     asset_id="johnson906/droid_pick_cube_50",
+            # ),
         ),
-        # train from scratch for now, should change when having droid on cartesian velocity
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         num_train_steps=20_000,
-        batch_size=32,
+        batch_size=64,
         lr_schedule=_optimizer.CosineDecaySchedule(
             warmup_steps=0,
-            peak_lr=2.5e-5,  # Change this value to adjust the learning rate
+            peak_lr=2.5e-5,
             decay_steps=100_000,
             decay_lr=2.5e-5,
         ),
@@ -1171,38 +1262,35 @@ _CONFIGS = [
             paligemma_variant="gemma_2b_lora",
             action_expert_variant="gemma_300m_lora",
         ).get_freeze_filter(),
-        # Turn off EMA for LoRA finetuning.
         ema_decay=None,
     ),
+    # Same as expo_pi05_droid_lora_finetune_rl but state = cartesian_position (6D) + gripper.
     TrainConfig(
-        # This config is for LoRA fine-tuning pi05-DROID on a custom (smaller) DROID dataset.
-        # LoRA fine-tuning uses less memory by only training adapter layers.
-        name="expo_pi05_droid_lora_finetune_rl",
+        name="expo_pi05_droid_lora_finetune_rl_cartesian_state",
         model=pi0_config.Pi0Config(
             pi05=True,
-            action_dim=32,  # pi05 is trained with 32-dim actions
+            action_dim=32,
             action_horizon=16,
             paligemma_variant="gemma_2b_lora",
             action_expert_variant="gemma_300m_lora",
         ),
         data=LeRobotDROIDDataConfig(
-            # repo_id should be input
-            repo_id="",
-            output_action_dim=7,  # cartesian velocity (6D + 1 gripper)
+            repo_id="", # "johnson906/droid_scoop_100",
+            output_action_dim=7,
+            use_cartesian_state=True,
             base_config=DataConfig(prompt_from_task=True),
-            assets=AssetsConfig(
-                # Replace with your custom DROID LeRobot dataset repo id.
-                # CHANGE THIS TO THE REPO ID OF THE DROID DATASET YOU ARE USING
-                assets_dir="/iris/u/khhung/projects/openpi/assets/expo_pi05_droid_lora_finetune_sft",
-                asset_id="johnson906/droid_ppv2_50_cartesian_same_pos",
-            ),
+            # assets=AssetsConfig(
+                # assets_dir is the base path; norm stats are loaded from assets_dir / asset_id.
+            #     assets_dir="/iris/u/khhung/projects/openpi/assets/expo_pi05_droid_lora_finetune_sft_cartesian_state",
+            #     asset_id="johnson906/droid_pick_cube_50",
+            # ),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
-        num_train_steps=1_000_000, 
-        batch_size=32,       
+        num_train_steps=1_000_000,
+        batch_size=64,
         lr_schedule=_optimizer.CosineDecaySchedule(
             warmup_steps=0,
-            peak_lr=2.5e-5,  # Change this value to adjust the learning rate
+            peak_lr=2.5e-5,
             decay_steps=100_000,
             decay_lr=2.5e-5,
         ),
@@ -1213,7 +1301,6 @@ _CONFIGS = [
             paligemma_variant="gemma_2b_lora",
             action_expert_variant="gemma_300m_lora",
         ).get_freeze_filter(),
-        # Turn off EMA for LoRA finetuning.
         ema_decay=None,
         keep_period=5_000,
     ),

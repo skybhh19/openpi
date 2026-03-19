@@ -1,5 +1,5 @@
 import numpy as np
-from PIL import Image
+import cv2
 
 
 def convert_to_uint8(img: np.ndarray) -> np.ndarray:
@@ -12,47 +12,46 @@ def convert_to_uint8(img: np.ndarray) -> np.ndarray:
     return img
 
 
-def resize_with_pad(images: np.ndarray, height: int, width: int, method=Image.BILINEAR) -> np.ndarray:
-    """Replicates tf.image.resize_with_pad for multiple images using PIL. Resizes a batch of images to a target height.
+def _resize_with_pad_single(img: np.ndarray, height: int, width: int) -> np.ndarray:
+    """One image (H, W, C): same logic as PIL version — ratio, resized size, center pad with 0.
+    Output shape (height, width, C), dtype uint8, range [0, 255]. Pixel values may differ slightly from PIL due to interpolation."""
+    cur_h, cur_w = img.shape[0], img.shape[1]
+    if cur_h == height and cur_w == width:
+        return np.asarray(img, dtype=np.uint8)
+    # Same formula as PIL: ratio = max(cur_width/width, cur_height/height)
+    ratio = max(cur_w / width, cur_h / height)
+    resized_w = int(cur_w / ratio)
+    resized_h = int(cur_h / ratio)
+    resized = cv2.resize(img, (resized_w, resized_h), interpolation=cv2.INTER_LINEAR)
+    if resized.dtype != np.uint8:
+        resized = np.clip(np.round(resized), 0, 255).astype(np.uint8)
+    # Same center pad as PIL: pad_height = int((height - resized_height) / 2), pad_width = int((width - resized_width) / 2)
+    pad_w = int((width - resized_w) / 2)
+    pad_h = int((height - resized_h) / 2)
+    out = np.zeros((height, width, img.shape[2]), dtype=np.uint8)
+    out[pad_h : pad_h + resized_h, pad_w : pad_w + resized_w] = resized
+    return out
+
+
+def resize_with_pad(images: np.ndarray, height: int, width: int, method=None) -> np.ndarray:
+    """Replicates tf.image.resize_with_pad. Resizes to target (height, width), aspect ratio preserved, center-pad with 0.
+
+    Output shape, dtype (uint8), value range [0, 255], and pad/ratio logic match the original PIL implementation.
+    Pixel values may differ slightly from PIL due to cv2 interpolation.
 
     Args:
         images: A batch of images in [..., height, width, channel] format.
         height: The target height of the image.
         width: The target width of the image.
-        method: The interpolation method to use. Default is bilinear.
+        method: Unused (kept for API compatibility).
 
     Returns:
-        The resized images in [..., height, width, channel].
+        The resized images in [..., height, width, channel], uint8, range [0, 255].
     """
-    # If the images are already the correct size, return them as is.
     if images.shape[-3:-1] == (height, width):
-        return images
+        return np.asarray(images, dtype=np.uint8)
 
     original_shape = images.shape
-
-    images = images.reshape(-1, *original_shape[-3:])
-    resized = np.stack([_resize_with_pad_pil(Image.fromarray(im), height, width, method=method) for im in images])
+    images_flat = images.reshape(-1, *original_shape[-3:])
+    resized = np.stack([_resize_with_pad_single(np.asarray(im, dtype=np.uint8), height, width) for im in images_flat])
     return resized.reshape(*original_shape[:-3], *resized.shape[-3:])
-
-
-def _resize_with_pad_pil(image: Image.Image, height: int, width: int, method: int) -> Image.Image:
-    """Replicates tf.image.resize_with_pad for one image using PIL. Resizes an image to a target height and
-    width without distortion by padding with zeros.
-
-    Unlike the jax version, note that PIL uses [width, height, channel] ordering instead of [batch, h, w, c].
-    """
-    cur_width, cur_height = image.size
-    if cur_width == width and cur_height == height:
-        return image  # No need to resize if the image is already the correct size.
-
-    ratio = max(cur_width / width, cur_height / height)
-    resized_height = int(cur_height / ratio)
-    resized_width = int(cur_width / ratio)
-    resized_image = image.resize((resized_width, resized_height), resample=method)
-
-    zero_image = Image.new(resized_image.mode, (width, height), 0)
-    pad_height = max(0, int((height - resized_height) / 2))
-    pad_width = max(0, int((width - resized_width) / 2))
-    zero_image.paste(resized_image, (pad_width, pad_height))
-    assert zero_image.size == (width, height)
-    return zero_image
