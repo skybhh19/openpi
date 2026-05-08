@@ -16,10 +16,12 @@ source /iris/u/khhung/projects/openpi/.venv/bin/activate
 echo "Starting training"
 
 
-data_id="droid_pick_cube_50"
+data_id="droid_scoop_rotate_20"
 CUDA_VISIBLE_DEVICES=0,1 uv run scripts/train.py expo_pi05_droid_lora_finetune_sft_cartesian_state \
     --exp-name=${data_id}_lora_sft_h1_test \
     --resume \
+    --data.assets.assets_dir="/iris/u/khhung/projects/openpi/assets/expo_pi05_sim_lora_finetune_sft" \
+    --data.assets.asset_id="johnson906/sim_twocubes_60" \
     --data.repo_id="johnson906/$data_id" \
     --num_train_steps=100001 \
     --save_interval=10000000 \

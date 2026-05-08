@@ -1236,7 +1236,7 @@ _CONFIGS = [
             action_expert_variant="gemma_300m_lora",
         ),
         data=LeRobotDROIDDataConfig(
-            repo_id="", #"johnson906/droid_eggflip_50",
+            repo_id="johnson906/droid_flower1_50", #"johnson906/droid_eggflip_50",
             output_action_dim=7,
             use_cartesian_state=True,
             base_config=DataConfig(prompt_from_task=True),
@@ -1264,6 +1264,29 @@ _CONFIGS = [
         ).get_freeze_filter(),
         ema_decay=None,
     ),
+    TrainConfig(
+        name="expo_pi05_droid_full_finetune_sft_cartesian_state",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=16,
+        ),
+        data=LeRobotDROIDDataConfig(
+            repo_id="johnson906/droid_flower_1_120",
+            output_action_dim=7,
+            use_cartesian_state=True,
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=20_000,
+        batch_size=64,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=0,
+            peak_lr=5e-5,
+            decay_steps=100_000,
+            decay_lr=5e-5,
+        ),
+    ),
     # Same as expo_pi05_droid_lora_finetune_rl but state = cartesian_position (6D) + gripper.
     TrainConfig(
         name="expo_pi05_droid_lora_finetune_rl_cartesian_state",
@@ -1275,7 +1298,7 @@ _CONFIGS = [
             action_expert_variant="gemma_300m_lora",
         ),
         data=LeRobotDROIDDataConfig(
-            repo_id="", # "johnson906/droid_scoop_100",
+            repo_id="johnson906/droid_pooling_50", # "johnson906/droid_scoop_100",
             output_action_dim=7,
             use_cartesian_state=True,
             base_config=DataConfig(prompt_from_task=True),
@@ -1304,6 +1327,78 @@ _CONFIGS = [
         ema_decay=None,
         keep_period=5_000,
     ),
+
+
+    TrainConfig(
+        name="expo_pi05_sim_lora_finetune_sft",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=16,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+        ),
+        data=LeRobotDROIDDataConfig(
+            repo_id="johnson906/sim_twocubes_60",
+            output_action_dim=7,
+            use_cartesian_state=True,
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=20_000,
+        batch_size=32,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=0,
+            peak_lr=2.5e-5,
+            decay_steps=100_000,
+            decay_lr=2.5e-5,
+        ),
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=16,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+        ).get_freeze_filter(),
+        ema_decay=None,
+    ),
+    # Same as expo_pi05_droid_lora_finetune_rl but state = cartesian_position (6D) + gripper.
+    TrainConfig(
+        name="expo_pi05_sim_lora_finetune_rl",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=16,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+        ),
+        data=LeRobotDROIDDataConfig(
+            repo_id="",
+            output_action_dim=7,
+            use_cartesian_state=True,
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=1_000_000,
+        batch_size=32,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=0,
+            peak_lr=2.5e-5,
+            decay_steps=100_000,
+            decay_lr=2.5e-5,
+        ),
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=16,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+        ).get_freeze_filter(),
+        ema_decay=None,
+        keep_period=5_000,
+    ),
+
+
     #
     # ALOHA Sim configs. This config is used to demonstrate how to train on a simple simulated environment.
     #
