@@ -1236,7 +1236,7 @@ _CONFIGS = [
             action_expert_variant="gemma_300m_lora",
         ),
         data=LeRobotDROIDDataConfig(
-            repo_id="johnson906/droid_flower1_50", #"johnson906/droid_eggflip_50",
+            repo_id="johnson906/droid_flower_insert_50", #"johnson906/droid_eggflip_50",
             output_action_dim=7,
             use_cartesian_state=True,
             base_config=DataConfig(prompt_from_task=True),
@@ -1272,7 +1272,7 @@ _CONFIGS = [
             action_horizon=16,
         ),
         data=LeRobotDROIDDataConfig(
-            repo_id="johnson906/droid_flower_1_120",
+            repo_id="johnson906/droid_flower_insert_50",
             output_action_dim=7,
             use_cartesian_state=True,
             base_config=DataConfig(prompt_from_task=True),
