@@ -922,6 +922,83 @@ _CONFIGS = [
         batch_size=32,
     ),
     TrainConfig(
+        name="pi05_droid_pen_cup_finetune_0605",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=16,
+        ),
+        data=RLDSDroidDataConfig(
+            repo_id="droid_pen_cup_fixed_prompt",
+            rlds_data_dir="/iliad2/group/datasets",
+            action_space=droid_rlds_dataset.DroidActionSpace.JOINT_VELOCITY,
+            shuffle_buffer_size=50_000,
+            datasets=(
+                droid_rlds_dataset.RLDSDataset(
+                    name="droid_pen_cup_fixed_prompt",
+                    version="1.0.0",
+                    weight=1.0,
+                    builder_dir="/iliad2/group/datasets/droid_pen_cup_fixed_prompt/1.0.0",
+                    filter_dict_path="examples/droid/droid_pen_cup_keep_ranges_1_0_1.json",
+                ),
+            ),
+            assets=AssetsConfig(
+                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+                asset_id="droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=20_000,
+        batch_size=64,
+        save_interval=2_000,
+        keep_period=4_000,
+        num_workers=0,  # Important: RLDS DataLoader requires num_workers=0, handles multi-processing internally
+    ),
+    TrainConfig(
+        # LoRA fine-tune the released pi05-DROID checkpoint on the 1,108-episode pen-cup RLDS subset.
+        name="pi05_droid_pen_cup_low_mem_finetune_0605",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,  # pi05-DROID uses 32-dim padded actions; RLDSDroidDataConfig supplies the first 8.
+            action_horizon=16,
+        ),
+        data=RLDSDroidDataConfig(
+            repo_id="droid_pen_cup_fixed_prompt",
+            rlds_data_dir="/iliad2/group/datasets",
+            action_space=droid_rlds_dataset.DroidActionSpace.JOINT_VELOCITY,
+            shuffle_buffer_size=50_000,
+            datasets=(
+                droid_rlds_dataset.RLDSDataset(
+                    name="droid_pen_cup_fixed_prompt",
+                    version="1.0.0",
+                    weight=1.0,
+                    builder_dir="/iliad2/group/datasets/droid_pen_cup_fixed_prompt/1.0.0",
+                    filter_dict_path="examples/droid/droid_pen_cup_keep_ranges_1_0_1.json",
+                ),
+            ),
+            assets=AssetsConfig(
+                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+                asset_id="droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=20_000,
+        batch_size=64,
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ).get_freeze_filter(),
+        ema_decay=None,
+        save_interval=2_000,
+        keep_period=4_000,
+        num_workers=0,
+    ),
+    TrainConfig(
         # LoRA fine-tune the released pi05-DROID checkpoint on the 107-episode pen-in-cup LeRobot dataset.
         name="pi05_droid_pen_in_cup_107_low_mem_finetune_20k",
         model=pi0_config.Pi0Config(
