@@ -31,6 +31,10 @@ class RLDSDataset:
     version: str
     weight: float
     filter_dict_path: str | None = None
+    # Optional path to a prepared TFDS builder directory. This is useful for local
+    # DROID subsets whose dataset metadata may intentionally keep the original
+    # DROID schema/name, while the directory name is task-specific.
+    builder_dir: str | None = None
 
 
 class DroidRldsDataset:
@@ -64,7 +68,11 @@ class DroidRldsDataset:
         def prepare_single_dataset(dataset_cfg: RLDSDataset):
             # ds_name, version = dataset_name.split(":")
             ds_name, version = dataset_cfg.name, dataset_cfg.version
-            builder = tfds.builder(ds_name, data_dir=data_dir, version=version)
+            builder = (
+                tfds.builder_from_directory(dataset_cfg.builder_dir)
+                if dataset_cfg.builder_dir is not None
+                else tfds.builder(ds_name, data_dir=data_dir, version=version)
+            )
             dataset = dl.DLataset.from_rlds(
                 builder, split="train", shuffle=shuffle, num_parallel_reads=num_parallel_reads
             )
