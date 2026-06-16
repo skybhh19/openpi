@@ -9,14 +9,15 @@ import signal
 import time
 from typing import Optional
 from typing import Union
+
 import numpy as np
-from openpi_client import image_tools
-from openpi_client import websocket_client_policy
 import pandas as pd
-from PIL import Image
-from droid.robot_env import RobotEnv
 import tqdm
 import tyro
+from droid.robot_env import RobotEnv
+from openpi_client import image_tools
+from openpi_client import websocket_client_policy
+from PIL import Image
 
 faulthandler.enable()
 
@@ -27,27 +28,14 @@ DROID_CONTROL_FREQUENCY = 15
 @dataclasses.dataclass
 class Args:
     # Hardware parameters
-    external_camera_id: str = "23404442"  # Use this when there is only one external camera.
-    left_camera_id: str = "<your_camera_id>"  # e.g., "24259877"
-    right_camera_id: str = "<your_camera_id>"  # e.g., "24514023"
+    external_camera_id: str = "23404442"  # e.g., "24259877"
     wrist_camera_id: str = "17471093"  # e.g., "13062452"
-
-    # Policy parameters
-    external_camera: Optional[str] = (
-        None  # which external camera should be fed to the policy, choose from ["left", "right"]
-    )
-    # If provided, use this prompt for every rollout instead of asking interactively.
-    default_prompt: Optional[str] = None
 
     # Rollout parameters
     max_timesteps: int = 600
     # How many actions to execute from a predicted action chunk before querying policy server again
     # 8 is usually a good default (equals 0.5 seconds of action execution).
     open_loop_horizon: int = 8
-    # Clip joint velocity actions before sending them to the robot. 1.0 matches the previous behavior.
-    joint_velocity_clip: float = 1.0
-    # Scale joint velocity actions after clipping. 1.0 matches the previous behavior.
-    joint_velocity_scale: float = 1.0
     # Whether to render an mp4 rollout video.
     render_video: bool = True
     # Directory where rollout videos are saved.
@@ -57,9 +45,7 @@ class Args:
 
     # Remote server parameters
     remote_host: str = "0.0.0.0"  # point this to the IP address of the policy server, e.g., "192.168.1.100"
-    remote_port: int = (
-        8000  # point this to the port of the policy server, default server port for openpi servers is 8000
-    )
+    remote_port: int = 8123  # default wrench-on-hook policy server port
 
 
 # We are using Ctrl+C to optionally terminate rollouts early -- however, if we press Ctrl+C while the policy server is
@@ -85,12 +71,6 @@ def prevent_keyboard_interrupt():
 
 
 def main(args: Args):
-    # Make sure external camera is specified by user -- we only use one external camera for the policy
-    if args.external_camera_id is None:
-        assert (
-            args.external_camera is not None and args.external_camera in ["left", "right"]
-        ), f"Please specify an external camera to use for the policy, choose from ['left', 'right'], but got {args.external_camera}"
-
     # Initialize the Panda environment. Using joint velocity action space and gripper position action space is very important.
     env = RobotEnv(action_space="joint_velocity", gripper_action_space="position")
     print("Created the droid env!")
@@ -100,8 +80,9 @@ def main(args: Args):
 
     df = pd.DataFrame(columns=["success", "duration", "video_filename", "num_rollouts", "success_rate_so_far"])
 
+    instruction = "Hang the wrench on the hook"
     while True:
-        instruction = args.default_prompt or input("Enter instruction: ")
+        # instruction = input("Enter instruction: ")
 
         # Rollout parameters
         actions_from_chunk_completed = 0
@@ -123,8 +104,12 @@ def main(args: Args):
                     save_to_disk=t_step == 0,
                 )
 
-                external_image = _get_policy_external_image(args, curr_obs)
-                video.append(external_image)
+                video.append(
+                    _make_video_frame(
+                        curr_obs["external_image"],
+                        curr_obs["wrist_image"],
+                    )
+                )
 
                 # Send websocket request to policy server if it's time to predict a new chunk
                 if actions_from_chunk_completed == 0 or actions_from_chunk_completed >= args.open_loop_horizon:
@@ -134,7 +119,7 @@ def main(args: Args):
                     # and improve latency.
                     request_data = {
                         "observation/exterior_image_1_left": image_tools.resize_with_pad(
-                            external_image, 224, 224
+                            curr_obs["external_image"], 224, 224
                         ),
                         "observation/wrist_image_left": image_tools.resize_with_pad(curr_obs["wrist_image"], 224, 224),
                         "observation/joint_position": curr_obs["joint_position"],
@@ -152,16 +137,14 @@ def main(args: Args):
                 # Select current action to execute from chunk
                 action = pred_action_chunk[actions_from_chunk_completed]
                 actions_from_chunk_completed += 1
-                joint_velocity = np.clip(action[:-1], -args.joint_velocity_clip, args.joint_velocity_clip)
-                joint_velocity = joint_velocity * args.joint_velocity_scale
 
                 # Binarize gripper action
                 if action[-1].item() > 0.5:
                     # action[-1] = 1.0
-                    action = np.concatenate([joint_velocity, np.ones((1,))])
+                    action = np.concatenate([action[:-1], np.ones((1,))])
                 else:
                     # action[-1] = 0.0
-                    action = np.concatenate([joint_velocity, np.zeros((1,))])
+                    action = np.concatenate([action[:-1], np.zeros((1,))])
 
                 # clip all dimensions of action to [-1, 1]
                 action = np.clip(action, -1, 1)
@@ -191,7 +174,7 @@ def main(args: Args):
                 print(f"Success must be a number in [0, 100] but got: {success * 100}")
                 success = None
 
-        save_filename = "video_" + timestamp
+        save_filename = "wrench_on_hook_video_" + timestamp
         video_path = ""
         if args.render_video:
             outcome_dir = "success" if success > 0 else "fail"
@@ -221,53 +204,34 @@ def main(args: Args):
 
     os.makedirs("results", exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%I:%M%p_%B_%d_%Y")
-    csv_filename = os.path.join("results", f"eval_{timestamp}.csv")
+    csv_filename = os.path.join("results", f"eval_wrench_on_hook_{timestamp}.csv")
     df.to_csv(csv_filename)
     print(f"Results saved to {csv_filename}")
 
 
 def _extract_observation(args: Args, obs_dict, *, save_to_disk=False):
     image_observations = obs_dict["image"]
-    external_image, left_image, right_image, wrist_image = None, None, None, None
+    external_image, wrist_image = None, None
     for key in image_observations:
         # Note the "left" below refers to the left camera in the stereo pair.
         # The model is only trained on left stereo cams, so we only feed those.
-        if args.external_camera_id is not None and args.external_camera_id in key and "left" in key:
+        if args.external_camera_id in key and "left" in key:
             external_image = image_observations[key]
-        elif args.left_camera_id in key and "left" in key:
-            left_image = image_observations[key]
-        elif args.right_camera_id in key and "left" in key:
-            right_image = image_observations[key]
         elif args.wrist_camera_id in key and "left" in key:
             wrist_image = image_observations[key]
 
+    if external_image is None:
+        raise ValueError(f"Could not find external camera {args.external_camera_id!r} in observation keys.")
+    if wrist_image is None:
+        raise ValueError(f"Could not find wrist camera {args.wrist_camera_id!r} in observation keys.")
+
     # Drop the alpha dimension
-    if args.external_camera_id is not None:
-        if external_image is None:
-            raise ValueError(f"Could not find external camera {args.external_camera_id!r} in observation keys.")
-        if wrist_image is None:
-            raise ValueError(f"Could not find wrist camera {args.wrist_camera_id!r} in observation keys.")
-        external_image = external_image[..., :3]
-        wrist_image = wrist_image[..., :3]
-    else:
-        if left_image is None:
-            raise ValueError(f"Could not find left camera {args.left_camera_id!r} in observation keys.")
-        if right_image is None:
-            raise ValueError(f"Could not find right camera {args.right_camera_id!r} in observation keys.")
-        if wrist_image is None:
-            raise ValueError(f"Could not find wrist camera {args.wrist_camera_id!r} in observation keys.")
-        left_image = left_image[..., :3]
-        right_image = right_image[..., :3]
-        wrist_image = wrist_image[..., :3]
+    external_image = external_image[..., :3]
+    wrist_image = wrist_image[..., :3]
 
     # Convert to RGB
-    if args.external_camera_id is not None:
-        external_image = external_image[..., ::-1]
-        wrist_image = wrist_image[..., ::-1]
-    else:
-        left_image = left_image[..., ::-1]
-        right_image = right_image[..., ::-1]
-        wrist_image = wrist_image[..., ::-1]
+    external_image = external_image[..., ::-1]
+    wrist_image = wrist_image[..., ::-1]
 
     # In addition to image observations, also capture the proprioceptive state
     robot_state = obs_dict["robot_state"]
@@ -278,32 +242,29 @@ def _extract_observation(args: Args, obs_dict, *, save_to_disk=False):
     # Save the images to disk so that they can be viewed live while the robot is running
     # Create one combined image to make live viewing easy
     if save_to_disk:
-        images = (
-            [external_image, wrist_image]
-            if args.external_camera_id is not None
-            else [left_image, wrist_image, right_image]
-        )
-        combined_image = np.concatenate(images, axis=1)
+        combined_image = _make_video_frame(external_image, wrist_image)
         combined_image = Image.fromarray(combined_image)
         combined_image.save("robot_camera_views.png")
 
-    obs = {
-        "left_image": left_image,
-        "right_image": right_image,
+    return {
+        "external_image": external_image,
         "wrist_image": wrist_image,
         "cartesian_position": cartesian_position,
         "joint_position": joint_position,
         "gripper_position": gripper_position,
     }
-    if args.external_camera_id is not None:
-        obs["external_image"] = external_image
-    return obs
 
 
-def _get_policy_external_image(args: Args, curr_obs):
-    if args.external_camera_id is not None:
-        return curr_obs["external_image"]
-    return curr_obs[f"{args.external_camera}_image"]
+def _make_video_frame(external_image, wrist_image):
+    external_image = np.asarray(external_image)[..., :3]
+    wrist_image = np.asarray(wrist_image)[..., :3]
+
+    if external_image.shape[0] != wrist_image.shape[0]:
+        target_height = external_image.shape[0]
+        target_width = round(wrist_image.shape[1] * target_height / wrist_image.shape[0])
+        wrist_image = np.asarray(Image.fromarray(wrist_image).resize((target_width, target_height)))
+
+    return np.concatenate([external_image, wrist_image], axis=1)
 
 
 def _write_video(path, frames, fps):

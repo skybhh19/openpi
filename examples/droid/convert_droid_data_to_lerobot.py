@@ -19,8 +19,6 @@ import shutil
 
 import cv2
 import h5py
-from lerobot.common.datasets.lerobot_dataset import HF_LEROBOT_HOME
-from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
@@ -35,6 +33,9 @@ def resize_image(image, size):
 
 
 def main(data_dir: str, *, push_to_hub: bool = False):
+    from lerobot.common.datasets.lerobot_dataset import HF_LEROBOT_HOME
+    from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
+
     # Clean up any existing dataset in the output directory
     output_path = HF_LEROBOT_HOME / REPO_NAME
     if output_path.exists():
@@ -106,7 +107,9 @@ def main(data_dir: str, *, push_to_hub: bool = False):
     for episode_path in tqdm(episode_paths, desc="Converting episodes"):
         # Load raw data
         recording_folderpath = episode_path.parent / "recordings" / "MP4"
-        trajectory = load_trajectory(str(episode_path), recording_folderpath=str(recording_folderpath))
+        trajectory = load_trajectory(
+            str(episode_path), recording_folderpath=str(recording_folderpath), remove_skipped_steps=True
+        )
 
         # To load the language instruction, we need to parse out the episode_id from the metadata file
         # Again, you can modify this step for your own data, to load your own language instructions
@@ -366,6 +369,14 @@ def load_hdf5_to_dict(hdf5_file, index, keys_to_ignore=[]):  # noqa: B006
     return data_dict
 
 
+def is_valid_transition(timestep):
+    controller_info = timestep["observation"]["controller_info"]
+    movement_enabled = bool(controller_info.get("movement_enabled", True))
+    timestamp = timestep["observation"].get("timestamp", {})
+    skip_action = bool(controller_info.get("skip_action", timestamp.get("skip_action", False)))
+    return movement_enabled and not skip_action
+
+
 class TrajectoryReader:
     def __init__(self, filepath, read_images=True):  # noqa: FBT002
         self._hdf5_file = h5py.File(filepath, "r")
@@ -450,9 +461,8 @@ def load_trajectory(
                 break
             timestep["observation"].update(camera_obs)
 
-        # Filter Steps #
-        step_skipped = not timestep["observation"]["controller_info"].get("movement_enabled", True)
-        delete_skipped_step = step_skipped and remove_skipped_steps
+        # Filter steps without valid actions.
+        delete_skipped_step = remove_skipped_steps and not is_valid_transition(timestep)
 
         # Save Filtered Timesteps #
         if delete_skipped_step:

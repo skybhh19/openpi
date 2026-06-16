@@ -1,7 +1,9 @@
 from collections.abc import Iterator, Sequence
+import json
 import logging
 import multiprocessing
 import os
+from pathlib import Path
 import typing
 from typing import Literal, Protocol, SupportsIndex, TypeVar
 
@@ -12,6 +14,7 @@ import numpy as np
 import torch
 
 import openpi.models.model as _model
+import openpi.shared.download as download
 import openpi.training.config as _config
 from openpi.training.droid_rlds_dataset import DroidRldsDataset
 import openpi.transforms as _transforms
@@ -127,6 +130,37 @@ class FakeDataset(Dataset):
         return self._num_samples
 
 
+def _load_lerobot_episode_indices(path: str | None) -> list[int] | None:
+    if path is None:
+        return None
+    cached_path = download.maybe_download(path)
+    with Path(cached_path).open("r") as f:
+        episode_indices = json.load(f)
+    if not isinstance(episode_indices, list) or not all(isinstance(index, int) for index in episode_indices):
+        raise ValueError(f"Expected {path} to contain a JSON list of integer episode indices.")
+    logging.info(f"Using LeRobot episode filter with {len(episode_indices)} episodes from {path}")
+    return episode_indices
+
+
+def _get_lerobot_frame_indices(dataset: Dataset, episode_indices: list[int]) -> list[int]:
+    episode_data_index = getattr(dataset, "episode_data_index")
+    starts = episode_data_index["from"]
+    ends = episode_data_index["to"]
+
+    frame_indices = []
+    for episode_index in episode_indices:
+        if episode_index < 0 or episode_index >= len(starts):
+            raise IndexError(
+                f"LeRobot episode index {episode_index} is out of bounds for dataset with {len(starts)} episodes."
+            )
+        start = int(starts[episode_index])
+        end = int(ends[episode_index])
+        frame_indices.extend(range(start, end))
+
+    logging.info(f"Selected {len(frame_indices)} frames from {len(episode_indices)} LeRobot episodes")
+    return frame_indices
+
+
 def create_torch_dataset(
     data_config: _config.DataConfig, action_horizon: int, model_config: _model.BaseModelConfig
 ) -> Dataset:
@@ -137,6 +171,7 @@ def create_torch_dataset(
     if repo_id == "fake":
         return FakeDataset(model_config, num_samples=1024)
 
+    episode_indices = _load_lerobot_episode_indices(data_config.lerobot_episode_indices_path)
     dataset_meta = lerobot_dataset.LeRobotDatasetMetadata(repo_id)
     dataset = lerobot_dataset.LeRobotDataset(
         data_config.repo_id,
@@ -144,6 +179,10 @@ def create_torch_dataset(
             key: [t / dataset_meta.fps for t in range(action_horizon)] for key in data_config.action_sequence_keys
         },
     )
+    if episode_indices is not None:
+        # Keep the full LeRobot dataset underneath so its original episode_index values still align with
+        # episode_data_index. Passing `episodes=` to LeRobotDataset can leave original episode ids in samples.
+        dataset = torch.utils.data.Subset(dataset, _get_lerobot_frame_indices(dataset, episode_indices))
 
     if data_config.prompt_from_task:
         dataset = TransformedDataset(dataset, [_transforms.PromptFromLeRobotTask(dataset_meta.tasks)])
