@@ -648,6 +648,35 @@ _WRENCH_ON_HOOK_06152026_EPISODE_FILTER_CONFIGS = (
 )
 
 
+_WRENCH_ON_HOOK_06202026_EPISODE_FILTER_CONFIGS = (
+    ("randompct25", "wrench_on_hook_06202026_randompct25_episode_indices.json"),
+    ("randompct50", "wrench_on_hook_06202026_randompct50_episode_indices.json"),
+    ("randompct75", "wrench_on_hook_06202026_randompct75_episode_indices.json"),
+    ("observabilitypct25", "wrench_on_hook_06202026_observabilitypct25_episode_indices.json"),
+    ("observabilitypct50", "wrench_on_hook_06202026_observabilitypct50_episode_indices.json"),
+    ("observabilitypct75", "wrench_on_hook_06202026_observabilitypct75_episode_indices.json"),
+)
+
+
+_WRENCH_TO_HOOK_FILTERED_COMBINED_0617_EPISODE_FILTER_CONFIGS = (
+    ("randompct25", "wrench_to_hook_filtered_combined_0617_randompct25_episode_indices.json"),
+    ("randompct50", "wrench_to_hook_filtered_combined_0617_randompct50_episode_indices.json"),
+    ("randompct75", "wrench_to_hook_filtered_combined_0617_randompct75_episode_indices.json"),
+    (
+        "observabilitypct25",
+        "wrench_to_hook_filtered_combined_0617_observabilitypct25_episode_indices.json",
+    ),
+    (
+        "observabilitypct50",
+        "wrench_to_hook_filtered_combined_0617_observabilitypct50_episode_indices.json",
+    ),
+    (
+        "observabilitypct75",
+        "wrench_to_hook_filtered_combined_0617_observabilitypct75_episode_indices.json",
+    ),
+)
+
+
 def _make_pi05_droid_pen_in_blue_cup_filter_low_mem_config(suffix: str, filter_filename: str) -> TrainConfig:
     return TrainConfig(
         name=f"pi05_droid_pen_in_blue_cup_{suffix}_low_mem_finetune",
@@ -702,7 +731,7 @@ def _make_pi05_droid_wrench_on_hook_filter_low_mem_config(suffix: str, filter_fi
             base_config=DataConfig(
                 prompt_from_task=True,
                 lerobot_episode_indices_path=(
-                    "examples/droid/wrench_to_hook/lerobot_filtering_keys/" + filter_filename
+                    "examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename
                 ),
             ),
             assets=AssetsConfig(
@@ -743,7 +772,89 @@ def _make_pi05_droid_wrench_on_hook_06152026_filter_low_mem_config(
             base_config=DataConfig(
                 prompt_from_task=True,
                 lerobot_episode_indices_path=(
-                    "examples/droid/wrench_to_hook/lerobot_filtering_keys/" + filter_filename
+                    "examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename
+                ),
+            ),
+            assets=AssetsConfig(
+                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+                asset_id="droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=20_000,
+        batch_size=32,
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ).get_freeze_filter(),
+        ema_decay=None,
+        save_interval=4_000,
+        keep_period=4_000,
+    )
+
+
+def _make_pi05_droid_wrench_on_hook_06202026_filter_low_mem_config(
+    suffix: str, filter_filename: str
+) -> TrainConfig:
+    return TrainConfig(
+        name=f"pi05_droid_wrench_on_hook_06202026_{suffix}_low_mem_finetune",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ),
+        data=LeRobotDROIDDataConfig(
+            repo_id="skybhh19/droid_wrench_on_hook_06202026",
+            base_config=DataConfig(
+                prompt_from_task=True,
+                lerobot_episode_indices_path=(
+                    "examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename
+                ),
+            ),
+            assets=AssetsConfig(
+                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+                asset_id="droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=20_000,
+        batch_size=32,
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ).get_freeze_filter(),
+        ema_decay=None,
+        save_interval=4_000,
+        keep_period=4_000,
+    )
+
+
+def _make_pi05_droid_wrench_to_hook_filtered_combined_0617_filter_low_mem_config(
+    suffix: str, filter_filename: str
+) -> TrainConfig:
+    return TrainConfig(
+        name=f"pi05_droid_wrench_to_hook_filtered_combined_0617_{suffix}_low_mem_finetune",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ),
+        data=LeRobotDROIDDataConfig(
+            repo_id="skybhh19/droid_wrench_to_hook_filtered_combined_0617",
+            base_config=DataConfig(
+                prompt_from_task=True,
+                lerobot_episode_indices_path=(
+                    "examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename
                 ),
             ),
             assets=AssetsConfig(
@@ -1397,9 +1508,83 @@ _CONFIGS = [
         save_interval=4_000,
         keep_period=4_000,
     ),
+    TrainConfig(
+        # Low-memory LoRA fine-tune pi05-DROID on the June 20 wrench-on-hook LeRobot dataset.
+        name="pi05_droid_wrench_on_hook_06202026_low_mem_finetune",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,  # pi05-DROID uses 32-dim padded actions; LeRobotDROIDDataConfig supplies the first 8.
+            action_horizon=16,
+        ),
+        data=LeRobotDROIDDataConfig(
+            repo_id="skybhh19/droid_wrench_on_hook_06202026",
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(
+                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+                asset_id="droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=20_000,
+        batch_size=32,
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ).get_freeze_filter(),
+        ema_decay=None,
+        save_interval=4_000,
+        keep_period=4_000,
+    ),
+    TrainConfig(
+        # Low-memory LoRA fine-tune pi05-DROID on the combined filtered June 17 wrench-to-hook dataset.
+        name="pi05_droid_wrench_to_hook_filtered_combined_0617_low_mem_finetune",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,  # pi05-DROID uses 32-dim padded actions; LeRobotDROIDDataConfig supplies the first 8.
+            action_horizon=16,
+        ),
+        data=LeRobotDROIDDataConfig(
+            repo_id="skybhh19/droid_wrench_to_hook_filtered_combined_0617",
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(
+                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+                asset_id="droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=20_000,
+        batch_size=32,
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ).get_freeze_filter(),
+        ema_decay=None,
+        save_interval=4_000,
+        keep_period=4_000,
+    ),
     *(
         _make_pi05_droid_wrench_on_hook_06152026_filter_low_mem_config(suffix, filter_filename)
         for suffix, filter_filename in _WRENCH_ON_HOOK_06152026_EPISODE_FILTER_CONFIGS
+    ),
+    *(
+        _make_pi05_droid_wrench_on_hook_06202026_filter_low_mem_config(suffix, filter_filename)
+        for suffix, filter_filename in _WRENCH_ON_HOOK_06202026_EPISODE_FILTER_CONFIGS
+    ),
+    *(
+        _make_pi05_droid_wrench_to_hook_filtered_combined_0617_filter_low_mem_config(
+            suffix, filter_filename
+        )
+        for suffix, filter_filename in _WRENCH_TO_HOOK_FILTERED_COMBINED_0617_EPISODE_FILTER_CONFIGS
     ),
     *(
         _make_pi05_droid_wrench_on_hook_filter_low_mem_config(suffix, filter_filename)
