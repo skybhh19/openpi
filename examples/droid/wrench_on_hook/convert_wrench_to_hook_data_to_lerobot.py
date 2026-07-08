@@ -76,11 +76,13 @@ def create_lerobot_dataset(repo_id: str):
 
 def get_camera_ids(step: dict) -> tuple[str, str]:
     camera_type_dict = step["observation"]["camera_type"]
-    wrist_ids = [k for k, v in camera_type_dict.items() if v == 0]
-    exterior_ids = [k for k, v in camera_type_dict.items() if v != 0]
+    image_dict = step["observation"].get("image", {})
+    wrist_ids = [k for k, v in camera_type_dict.items() if v == 0 and k in image_dict]
+    exterior_ids = [k for k, v in camera_type_dict.items() if v != 0 and k in image_dict]
     if len(wrist_ids) != 1 or len(exterior_ids) != 1:
         raise ValueError(
-            f"Expected exactly one wrist and one exterior camera, got wrist={wrist_ids}, exterior={exterior_ids}"
+            "Expected exactly one wrist and one exterior camera with loaded images, "
+            f"got wrist={wrist_ids}, exterior={exterior_ids}, available_images={sorted(image_dict)}"
         )
     return wrist_ids[0], exterior_ids[0]
 
@@ -142,6 +144,7 @@ def main(
     total_frames = 0
     total_valid_frames = 0
     converted_episodes = 0
+    skipped_episodes = 0
     for episode_path in tqdm(episode_paths, desc="Converting episodes"):
         recording_folderpath = episode_path.parent / "recordings" / "MP4"
         trajectory = load_trajectory(
@@ -150,28 +153,32 @@ def main(
         if len(trajectory) == 0:
             continue
 
-        converted_frames = 0
-        for step in trajectory:
-            total_frames += 1
-            if not is_valid_transition(step):
-                continue
-            total_valid_frames += 1
+        total_frames += len(trajectory)
+        valid_steps = [step for step in trajectory if is_valid_transition(step)]
+        total_valid_frames += len(valid_steps)
+        if not valid_steps:
+            continue
 
-            if dataset is not None:
-                dataset.add_frame(convert_step(step))
-            converted_frames += 1
-
-        if converted_frames == 0:
+        try:
+            converted_frames = [convert_step(step) for step in valid_steps]
+        except ValueError as exc:
+            skipped_episodes += 1
+            print(f"Skipping {episode_path}: {exc}")
             continue
 
         if dataset is not None:
+            for frame in converted_frames:
+                dataset.add_frame(frame)
             dataset.save_episode()
+
         converted_episodes += 1
 
     print(
         f"Converted {converted_episodes} episodes with {total_valid_frames} valid frames "
         f"out of {total_frames} loaded frames."
     )
+    if skipped_episodes:
+        print(f"Skipped {skipped_episodes} episodes because required camera images were missing.")
 
     if push_to_hub:
         if dataset is None:
