@@ -1,10 +1,10 @@
 """
-Convert the DROID wrench-on-hook dataset to LeRobot format.
+Convert a DROID wrench-on-hook dataset to LeRobot format.
 
 Example:
-uv run examples/droid/wrench_to_hook/convert_wrench_to_hook_data_to_lerobot.py \
-    --data-dir /iris/u/tiangao/projects/droid/data/success/2026-06-13 \
-    --repo-id skybhh19/droid_wrench_on_hook
+uv run examples/droid/wrench_on_hook/convert_wrench_on_hook_data_to_lerobot.py \
+    --data-dir /iris/u/tiangao/wrench_on_hook_0722 \
+    --repo-id skybhh19/droid_wrench_on_hook_07222026
 
 The resulting dataset is saved under $LEROBOT_HOME / <repo-id>.
 """
@@ -25,8 +25,8 @@ from convert_droid_data_to_lerobot import is_valid_transition
 from convert_droid_data_to_lerobot import load_trajectory
 from convert_droid_data_to_lerobot import resize_image
 
-DEFAULT_DATA_DIR = "/iris/u/tiangao/projects/droid/data/success/2026-06-13"
-DEFAULT_REPO_ID = "skybhh19/droid_wrench_on_hook"
+DEFAULT_DATA_DIR = "/iris/u/tiangao/wrench_on_hook_0722"
+DEFAULT_REPO_ID = "skybhh19/droid_wrench_on_hook_07222026"
 TASK_PROMPT = "Hang the wrench on the hook"
 
 
@@ -95,7 +95,7 @@ def convert_step(step: dict) -> dict:
 
     return {
         "exterior_image_1_left": exterior_image,
-        # The June 13 wrench-on-hook data has one exterior camera. Duplicate it so the dataset remains
+        # The July 2026 wrench-on-hook data has one exterior camera. Duplicate it so the dataset remains
         # compatible with the existing LeRobotDROIDDataConfig schema.
         "exterior_image_2_left": exterior_image,
         "wrist_image_left": wrist_image,
