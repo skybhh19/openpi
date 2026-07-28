@@ -628,6 +628,16 @@ _PEN_IN_BLUE_CUP_SCORE_FILTER_CONFIGS = (
 )
 
 
+_PEN_IN_BLUE_CUP_07272026_EPISODE_FILTER_CONFIGS = (
+    ("randompct25", "pen_in_blue_cup_07272026_randompct25_episode_indices.json"),
+    ("randompct50", "pen_in_blue_cup_07272026_randompct50_episode_indices.json"),
+    ("randompct75", "pen_in_blue_cup_07272026_randompct75_episode_indices.json"),
+    ("observabilitypct25", "pen_in_blue_cup_07272026_observabilitypct25_episode_indices.json"),
+    ("observabilitypct50", "pen_in_blue_cup_07272026_observabilitypct50_episode_indices.json"),
+    ("observabilitypct75", "pen_in_blue_cup_07272026_observabilitypct75_episode_indices.json"),
+)
+
+
 _WRENCH_ON_HOOK_EPISODE_FILTER_CONFIGS = (
     ("randompct25", "wrench_on_hook_randompct25_episode_indices.json"),
     ("randompct50", "wrench_on_hook_randompct50_episode_indices.json"),
@@ -751,6 +761,47 @@ def _make_pi05_droid_pen_in_blue_cup_filter_low_mem_config(suffix: str, filter_f
         ),
         data=LeRobotDROIDDataConfig(
             repo_id="skybhh19/droid_pen_in_blue_cup",
+            base_config=DataConfig(
+                prompt_from_task=True,
+                lerobot_episode_indices_path=(
+                    "examples/droid/pen_in_blue_cup/lerobot_filtering_keys/" + filter_filename
+                ),
+            ),
+            assets=AssetsConfig(
+                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+                asset_id="droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=20_000,
+        batch_size=32,
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ).get_freeze_filter(),
+        ema_decay=None,
+        save_interval=4_000,
+        keep_period=4_000,
+    )
+
+
+def _make_pi05_droid_pen_in_blue_cup_07272026_filter_low_mem_config(
+    suffix: str, filter_filename: str
+) -> TrainConfig:
+    return TrainConfig(
+        name=f"pi05_droid_pen_in_blue_cup_07272026_{suffix}_low_mem_finetune",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ),
+        data=LeRobotDROIDDataConfig(
+            repo_id="skybhh19/droid_pen_in_blue_cup_07272026",
             base_config=DataConfig(
                 prompt_from_task=True,
                 lerobot_episode_indices_path=(
@@ -1716,6 +1767,38 @@ _CONFIGS = [
         keep_period=4_000,
     ),
     TrainConfig(
+        # Low-memory LoRA fine-tune pi05-DROID on the July 27 pen-in-blue-cup LeRobot dataset.
+        name="pi05_droid_pen_in_blue_cup_07272026_low_mem_finetune",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,  # pi05-DROID uses 32-dim padded actions; LeRobotDROIDDataConfig supplies the first 8.
+            action_horizon=16,
+        ),
+        data=LeRobotDROIDDataConfig(
+            repo_id="skybhh19/droid_pen_in_blue_cup_07272026",
+            base_config=DataConfig(prompt_from_task=True),
+            assets=AssetsConfig(
+                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+                asset_id="droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=20_000,
+        batch_size=32,
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+            action_dim=32,
+            action_horizon=16,
+        ).get_freeze_filter(),
+        ema_decay=None,
+        save_interval=4_000,
+        keep_period=4_000,
+    ),
+    TrainConfig(
         # Low-memory LoRA fine-tune pi05-DROID on the pen-in-white-cup LeRobot dataset.
         name="pi05_droid_pen_in_white_cup_low_mem_finetune",
         model=pi0_config.Pi0Config(
@@ -2177,6 +2260,10 @@ _CONFIGS = [
     *(
         _make_pi05_droid_pen_in_blue_cup_filter_low_mem_config(suffix, filter_filename)
         for suffix, filter_filename in _PEN_IN_BLUE_CUP_SCORE_FILTER_CONFIGS
+    ),
+    *(
+        _make_pi05_droid_pen_in_blue_cup_07272026_filter_low_mem_config(suffix, filter_filename)
+        for suffix, filter_filename in _PEN_IN_BLUE_CUP_07272026_EPISODE_FILTER_CONFIGS
     ),
     #
     # ALOHA Sim configs. This config is used to demonstrate how to train on a simple simulated environment.

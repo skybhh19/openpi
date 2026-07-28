@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=28
 #SBATCH --mem=256G
 #SBATCH --gres=gpu
-#SBATCH --job-name=pi05_droid_wrench_on_hook_07242026_combined_observabilitypct25_low_mem_finetune # Name the job (for easier monitoring)
+#SBATCH --job-name=pi05_droid_pen_in_blue_cup_07272026_observabilitypct50_low_mem_finetune # Name the job (for easier monitoring)
 #SBATCH --constraint=[hopper] # Use only Hopper or Ampere nodes
 #SBATCH --output=slurm-%j.out
 #SBATCH --account=iliad
@@ -18,6 +18,6 @@ source .venv/bin/activate
 export HF_LEROBOT_HOME=/iliad/u/tiangao/lerobot_datasets/
 
 XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 \
-uv run scripts/train.py pi05_droid_wrench_on_hook_07242026_combined_observabilitypct25_low_mem_finetune \
-  --exp-name=pi05_droid_wrench_on_hook_07242026_combined_observabilitypct25_low_mem_finetune \
+uv run scripts/train.py pi05_droid_pen_in_blue_cup_07272026_observabilitypct50_low_mem_finetune \
+  --exp-name=pi05_droid_pen_in_blue_cup_07272026_observabilitypct50_low_mem_finetune \
   --resume
