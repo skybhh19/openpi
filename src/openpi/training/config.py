@@ -807,6 +807,16 @@ _WRENCH_ON_HOOK_07292026_EPISODE_FILTER_CONFIGS = (
 )
 
 
+_WRENCH_ON_HOOK_08012026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
+    ("randompct25", "wrench_on_hook_08012026_jointpos_randompct25_episode_indices.json"),
+    ("randompct50", "wrench_on_hook_08012026_jointpos_randompct50_episode_indices.json"),
+    ("randompct75", "wrench_on_hook_08012026_jointpos_randompct75_episode_indices.json"),
+    ("observabilitypct25", "wrench_on_hook_08012026_jointpos_observabilitypct25_episode_indices.json"),
+    ("observabilitypct50", "wrench_on_hook_08012026_jointpos_observabilitypct50_episode_indices.json"),
+    ("observabilitypct75", "wrench_on_hook_08012026_jointpos_observabilitypct75_episode_indices.json"),
+)
+
+
 _WRENCH_TO_HOOK_FILTERED_COMBINED_0617_EPISODE_FILTER_CONFIGS = (
     ("randompct25", "wrench_to_hook_filtered_combined_0617_randompct25_episode_indices.json"),
     ("randompct50", "wrench_to_hook_filtered_combined_0617_randompct50_episode_indices.json"),
@@ -1387,6 +1397,17 @@ def _make_pi05_base_droid_wrench_on_hook_07292026_jointpos_filter_low_mem_config
     )
 
 
+def _make_pi05_base_droid_wrench_on_hook_08012026_jointpos_filter_low_mem_config(
+    suffix: str, filter_filename: str, *, assets: AssetsConfig | None = None, name_tag: str = "jointpos"
+) -> TrainConfig:
+    return _make_pi05_base_droid_jointpos_low_mem_config(
+        name=f"pi05_base_droid_wrench_on_hook_08012026_{name_tag}_{suffix}_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_08012026_jointpos",
+        episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
+        assets=assets,
+    )
+
+
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
     #
@@ -1796,6 +1817,20 @@ _CONFIGS = [
         repo_id="skybhh19/droid_wrench_on_hook_07292026_jointpos",
         assets=_PI05_BASE_FRANKA_ASSETS,
     ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_wrench_on_hook_08012026_jointpos_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_08012026_jointpos",
+    ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_wrench_on_hook_08012026_jointpos_franka_stats_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_08012026_jointpos",
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_tool_in_holder_08012026_jointpos_franka_stats_low_mem_finetune",
+        repo_id="skybhh19/droid_tool_in_holder_08012026_jointpos",
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
     *(
         _make_pi05_base_droid_wrench_on_hook_07292026_jointpos_filter_low_mem_config(suffix, filter_filename)
         for suffix, filter_filename in _WRENCH_ON_HOOK_07292026_EPISODE_FILTER_CONFIGS
@@ -1808,6 +1843,19 @@ _CONFIGS = [
             name_tag="jointpos_franka_stats",
         )
         for suffix, filter_filename in _WRENCH_ON_HOOK_07292026_EPISODE_FILTER_CONFIGS
+    ),
+    *(
+        _make_pi05_base_droid_wrench_on_hook_08012026_jointpos_filter_low_mem_config(suffix, filter_filename)
+        for suffix, filter_filename in _WRENCH_ON_HOOK_08012026_JOINTPOS_EPISODE_FILTER_CONFIGS
+    ),
+    *(
+        _make_pi05_base_droid_wrench_on_hook_08012026_jointpos_filter_low_mem_config(
+            suffix,
+            filter_filename,
+            assets=_PI05_BASE_FRANKA_ASSETS,
+            name_tag="jointpos_franka_stats",
+        )
+        for suffix, filter_filename in _WRENCH_ON_HOOK_08012026_JOINTPOS_EPISODE_FILTER_CONFIGS
     ),
     TrainConfig(
         name="pi05_droid_pen_cup_finetune_0605",
