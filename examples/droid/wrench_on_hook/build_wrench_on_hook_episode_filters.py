@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import csv
 import json
-import random
-from collections import Counter
 from pathlib import Path
+import random
 from typing import Any
-
 
 ANNOTATIONS_CSV = Path("/iris/u/tiangao/wrench_on_hook_0722_labels.csv")
 OUTPUT_DIR = Path(__file__).with_name("lerobot_filtering_keys")
@@ -132,9 +131,9 @@ def _validate_and_index_rows(
         except ValueError as exc:
             raise ValueError(f"Invalid human label for ep_idx={ep_idx}: {row[label_column]!r}") from exc
 
-        row = row.copy()
-        row["ep_idx"] = str(ep_idx)
-        indexed_rows.append(row)
+        indexed_row = row.copy()
+        indexed_row["ep_idx"] = str(ep_idx)
+        indexed_rows.append(indexed_row)
 
     if seen_indices != set(range(len(raw_paths))):
         missing = sorted(set(range(len(raw_paths))) - seen_indices)
@@ -186,6 +185,7 @@ def build_filters(
     label_column: str | None,
     filter_pcts: tuple[int, ...],
     random_seed: int,
+    *,
     check_only: bool,
 ) -> dict[str, object]:
     rows = _load_csv_rows(annotations_csv)
