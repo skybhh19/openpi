@@ -171,6 +171,9 @@ camera_type_dict = {
     "hand_camera_id": 0,
     "varied_camera_1_id": 1,
     "varied_camera_2_id": 1,
+    "17471093": 0,
+    "23404442": 1,
+    "31078156": 1,
 }
 
 camera_type_to_string_dict = {
@@ -309,8 +312,10 @@ class RecordedMultiCameraWrapper:
             try:
                 cam_type = camera_type_dict[cam_id]
             except KeyError:
-                print(f"{self.camera_dict} -- {camera_type_dict}")
-                raise ValueError(f"Camera type {cam_id} not found in camera_type_dict")  # noqa: B904
+                cam_type = get_camera_type(cam_id)
+                if cam_type is None:
+                    print(f"{self.camera_dict} -- {camera_type_dict}")
+                    raise ValueError(f"Camera type {cam_id} not found in camera_type_dict")  # noqa: B904
             curr_cam_kwargs = self.camera_kwargs.get(cam_type, {})
             self.camera_dict[cam_id].set_reading_parameters(**curr_cam_kwargs)
 

@@ -4,8 +4,8 @@
 #SBATCH --nodes=1 # Only use one node (machine)
 #SBATCH --cpus-per-task=28
 #SBATCH --mem=256G
-#SBATCH --gres=gpu:h200:1
-#SBATCH --job-name=pi05_base_droid_wrench_on_hook_08012026_jointpos_franka_stats_observabilitypct75_low_mem_finetune # Name the job (for easier monitoring)
+#SBATCH --gres=gpu:h100:1
+#SBATCH --job-name=pi05_base_droid_wrench_on_hook_08242026_jointpos_franka_stats_observabilitypct50_low_mem_finetune # Name the job (for easier monitoring)
 #SBATCH --constraint=[hopper] # Use only Hopper or Ampere nodes
 #SBATCH --output=slurm-%j.out
 #SBATCH --account=iris
@@ -18,6 +18,6 @@ source .venv/bin/activate
 export HF_LEROBOT_HOME=/iliad/u/tiangao/lerobot_datasets/
 
 XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 \
-uv run scripts/train.py pi05_base_droid_wrench_on_hook_08012026_jointpos_franka_stats_observabilitypct75_low_mem_finetune \
-  --exp-name=pi05_base_droid_wrench_on_hook_08012026_jointpos_franka_stats_observabilitypct75_low_mem_finetune \
+uv run scripts/train.py pi05_base_droid_wrench_on_hook_08242026_jointpos_franka_stats_observabilitypct50_low_mem_finetune \
+  --exp-name=pi05_base_droid_wrench_on_hook_08242026_jointpos_franka_stats_observabilitypct50_low_mem_finetune \
   --resume

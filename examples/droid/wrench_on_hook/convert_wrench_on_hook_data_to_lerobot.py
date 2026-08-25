@@ -9,6 +9,8 @@ uv run examples/droid/wrench_on_hook/convert_wrench_on_hook_data_to_lerobot.py \
 The resulting dataset is saved under $LEROBOT_HOME / <repo-id>.
 """
 
+# ruff: noqa: E402, I001
+
 from pathlib import Path
 import shutil
 import sys
@@ -79,6 +81,12 @@ def get_camera_ids(step: dict) -> tuple[str, str]:
     image_dict = step["observation"].get("image", {})
     wrist_ids = [k for k, v in camera_type_dict.items() if v == 0 and k in image_dict]
     exterior_ids = [k for k, v in camera_type_dict.items() if v != 0 and k in image_dict]
+
+    if len(wrist_ids) == 1 and len(exterior_ids) == 0:
+        # Some copied DROID datasets keep the original exterior camera id in HDF5 metadata but store the
+        # actual MP4 under a replacement camera serial. In that case, use the one loaded non-wrist image.
+        exterior_ids = [k for k in image_dict if k != wrist_ids[0]]
+
     if len(wrist_ids) != 1 or len(exterior_ids) != 1:
         raise ValueError(
             "Expected exactly one wrist and one exterior camera with loaded images, "
