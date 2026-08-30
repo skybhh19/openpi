@@ -20,6 +20,7 @@ import openpi.models.tokenizer as _tokenizer
 import openpi.policies.aloha_policy as aloha_policy
 import openpi.policies.droid_policy as droid_policy
 import openpi.policies.libero_policy as libero_policy
+import openpi.policies.robomimic_policy as robomimic_policy
 import openpi.shared.download as _download
 import openpi.shared.normalize as _normalize
 import openpi.training.droid_rlds_dataset as droid_rlds_dataset
@@ -352,6 +353,50 @@ class LeRobotLiberoDataConfig(DataConfigFactory):
         model_transforms = ModelTransformFactory()(model_config)
 
         # We return all data transforms for training and inference. No need to change anything here.
+        return dataclasses.replace(
+            self.create_base_config(assets_dirs, model_config),
+            repack_transforms=repack_transform,
+            data_transforms=data_transforms,
+            model_transforms=model_transforms,
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class LeRobotRobomimicDataConfig(DataConfigFactory):
+    """Data pipeline for a task described by a Robomimic policy configuration."""
+
+    task_config: tyro.conf.Suppress[robomimic_policy.RobomimicTaskConfig] = tyro.MISSING
+
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        repack_transform = _transforms.Group(
+            inputs=[
+                _transforms.RepackTransform(
+                    {
+                        "observation/agentview_image": "agentview_image",
+                        "observation/eye_in_hand_image": "eye_in_hand_image",
+                        "observation/state": "state",
+                        "actions": "actions",
+                        "prompt": "prompt",
+                    }
+                )
+            ]
+        )
+        data_transforms = _transforms.Group(
+            inputs=[
+                robomimic_policy.RobomimicInputs(
+                    model_type=model_config.model_type,
+                    task_config=self.task_config,
+                ),
+            ],
+            outputs=[robomimic_policy.RobomimicOutputs(task_config=self.task_config)],
+        )
+        if self.task_config.delta_action_mask is not None:
+            data_transforms = data_transforms.push(
+                inputs=[_transforms.DeltaActions(self.task_config.delta_action_mask)],
+                outputs=[_transforms.AbsoluteActions(self.task_config.delta_action_mask)],
+            )
+        model_transforms = ModelTransformFactory(default_prompt=self.task_config.default_prompt)(model_config)
         return dataclasses.replace(
             self.create_base_config(assets_dirs, model_config),
             repack_transforms=repack_transform,
@@ -827,6 +872,24 @@ _WRENCH_ON_HOOK_08242026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
 )
 
 
+_WRENCH_ON_HOOK_08252026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
+    ("randompct25", "wrench_on_hook_08252026_jointpos_randompct25_episode_indices.json"),
+    ("randompct50", "wrench_on_hook_08252026_jointpos_randompct50_episode_indices.json"),
+    ("randompct75", "wrench_on_hook_08252026_jointpos_randompct75_episode_indices.json"),
+    ("observabilitypct25", "wrench_on_hook_08252026_jointpos_observabilitypct25_episode_indices.json"),
+    ("observabilitypct50", "wrench_on_hook_08252026_jointpos_observabilitypct50_episode_indices.json"),
+    ("observabilitypct75", "wrench_on_hook_08252026_jointpos_observabilitypct75_episode_indices.json"),
+)
+
+
+_TOOL_IN_HOLDER_08272026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
+    ("randompct50", "tool_in_holder_08272026_jointpos_randompct50_episode_indices.json"),
+    ("randompct75", "tool_in_holder_08272026_jointpos_randompct75_episode_indices.json"),
+    ("observabilitypct50", "tool_in_holder_08272026_jointpos_observabilitypct50_episode_indices.json"),
+    ("observabilitypct75", "tool_in_holder_08272026_jointpos_observabilitypct75_episode_indices.json"),
+)
+
+
 _WRENCH_TO_HOOK_FILTERED_COMBINED_0617_EPISODE_FILTER_CONFIGS = (
     ("randompct25", "wrench_to_hook_filtered_combined_0617_randompct25_episode_indices.json"),
     ("randompct50", "wrench_to_hook_filtered_combined_0617_randompct50_episode_indices.json"),
@@ -885,9 +948,7 @@ def _make_pi05_droid_pen_in_blue_cup_filter_low_mem_config(suffix: str, filter_f
     )
 
 
-def _make_pi05_droid_pen_in_blue_cup_07272026_filter_low_mem_config(
-    suffix: str, filter_filename: str
-) -> TrainConfig:
+def _make_pi05_droid_pen_in_blue_cup_07272026_filter_low_mem_config(suffix: str, filter_filename: str) -> TrainConfig:
     return TrainConfig(
         name=f"pi05_droid_pen_in_blue_cup_07272026_{suffix}_low_mem_finetune",
         model=pi0_config.Pi0Config(
@@ -965,9 +1026,7 @@ def _make_pi05_droid_wrench_on_hook_filter_low_mem_config(suffix: str, filter_fi
     )
 
 
-def _make_pi05_droid_wrench_on_hook_06152026_filter_low_mem_config(
-    suffix: str, filter_filename: str
-) -> TrainConfig:
+def _make_pi05_droid_wrench_on_hook_06152026_filter_low_mem_config(suffix: str, filter_filename: str) -> TrainConfig:
     return TrainConfig(
         name=f"pi05_droid_wrench_on_hook_06152026_{suffix}_low_mem_finetune",
         model=pi0_config.Pi0Config(
@@ -1006,9 +1065,7 @@ def _make_pi05_droid_wrench_on_hook_06152026_filter_low_mem_config(
     )
 
 
-def _make_pi05_droid_wrench_on_hook_06202026_filter_low_mem_config(
-    suffix: str, filter_filename: str
-) -> TrainConfig:
+def _make_pi05_droid_wrench_on_hook_06202026_filter_low_mem_config(suffix: str, filter_filename: str) -> TrainConfig:
     return TrainConfig(
         name=f"pi05_droid_wrench_on_hook_06202026_{suffix}_low_mem_finetune",
         model=pi0_config.Pi0Config(
@@ -1092,9 +1149,7 @@ def _make_pi05_droid_wrench_on_hook_06222026_filter_low_mem_config(
     )
 
 
-def _make_pi05_droid_wrench_on_hook_06282026_filter_low_mem_config(
-    suffix: str, filter_filename: str
-) -> TrainConfig:
+def _make_pi05_droid_wrench_on_hook_06282026_filter_low_mem_config(suffix: str, filter_filename: str) -> TrainConfig:
     return TrainConfig(
         name=f"pi05_droid_wrench_on_hook_06282026_{suffix}_low_mem_finetune",
         model=pi0_config.Pi0Config(
@@ -1133,9 +1188,7 @@ def _make_pi05_droid_wrench_on_hook_06282026_filter_low_mem_config(
     )
 
 
-def _make_pi05_droid_wrench_on_hook_06292026_filter_low_mem_config(
-    suffix: str, filter_filename: str
-) -> TrainConfig:
+def _make_pi05_droid_wrench_on_hook_06292026_filter_low_mem_config(suffix: str, filter_filename: str) -> TrainConfig:
     return TrainConfig(
         name=f"pi05_droid_wrench_on_hook_06292026_{suffix}_low_mem_finetune",
         model=pi0_config.Pi0Config(
@@ -1174,9 +1227,7 @@ def _make_pi05_droid_wrench_on_hook_06292026_filter_low_mem_config(
     )
 
 
-def _make_pi05_droid_wrench_on_hook_07222026_filter_low_mem_config(
-    suffix: str, filter_filename: str
-) -> TrainConfig:
+def _make_pi05_droid_wrench_on_hook_07222026_filter_low_mem_config(suffix: str, filter_filename: str) -> TrainConfig:
     return TrainConfig(
         name=f"pi05_droid_wrench_on_hook_07222026_{suffix}_low_mem_finetune",
         model=pi0_config.Pi0Config(
@@ -1256,9 +1307,7 @@ def _make_pi05_droid_wrench_on_hook_07242026_combined_filter_low_mem_config(
     )
 
 
-def _make_pi05_droid_wrench_on_hook_07292026_filter_low_mem_config(
-    suffix: str, filter_filename: str
-) -> TrainConfig:
+def _make_pi05_droid_wrench_on_hook_07292026_filter_low_mem_config(suffix: str, filter_filename: str) -> TrainConfig:
     return TrainConfig(
         name=f"pi05_droid_wrench_on_hook_07292026_{suffix}_low_mem_finetune",
         model=pi0_config.Pi0Config(
@@ -1353,6 +1402,125 @@ _PI05_BASE_FRANKA_ASSETS = AssetsConfig(
 )
 
 
+_PI05_ROBOMIMIC_THREADING_OSC_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d0_osc_low_mem_finetune",
+    asset_id="local/robomimic_threading_d0_osc_v3_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_JOINT_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d0_joint_low_mem_finetune",
+    asset_id="local/robomimic_threading_d0_joint_v3_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_D05_JOINT_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d05_joint_low_mem_finetune",
+    asset_id="local/robomimic_threading_d05_joint_v2_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_OSC_LORA_MODEL = pi0_config.Pi0Config(
+    pi05=True,
+    paligemma_variant="gemma_2b_lora",
+    action_expert_variant="gemma_300m_lora",
+    action_dim=32,
+    action_horizon=16,
+    discrete_state_input=True,
+)
+
+
+_PI05_ROBOMIMIC_THREADING_JOINT_FULL_MODEL = pi0_config.Pi0Config(
+    pi05=True,
+    action_dim=32,
+    action_horizon=16,
+    discrete_state_input=True,
+)
+
+
+_PI05_ROBOMIMIC_THREADING_JOINT_LORA_MODEL = pi0_config.Pi0Config(
+    pi05=True,
+    paligemma_variant="gemma_2b_lora",
+    action_expert_variant="gemma_300m_lora",
+    action_dim=32,
+    action_horizon=16,
+    discrete_state_input=True,
+)
+
+
+def _make_pi05_robomimic_threading_osc_low_mem_config(
+    *,
+    name: str,
+    episode_indices_path: str | None = None,
+    assets: AssetsConfig | None = None,
+) -> TrainConfig:
+    return TrainConfig(
+        name=name,
+        model=_PI05_ROBOMIMIC_THREADING_OSC_LORA_MODEL,
+        data=LeRobotRobomimicDataConfig(
+            repo_id="local/robomimic_threading_d0_osc_v3_256",
+            task_config=robomimic_policy.THREADING_OSC,
+            base_config=DataConfig(
+                prompt_from_task=True,
+                lerobot_episode_indices_path=episode_indices_path,
+            ),
+            assets=assets or AssetsConfig(),
+        ),
+        batch_size=32,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000,
+            peak_lr=5e-5,
+            decay_steps=20_000,
+            decay_lr=5e-6,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=20_000,
+        freeze_filter=_PI05_ROBOMIMIC_THREADING_OSC_LORA_MODEL.get_freeze_filter(),
+        ema_decay=None,
+        save_interval=2_000,
+        keep_period=5_000,
+    )
+
+
+def _make_pi05_robomimic_threading_joint_config(
+    *,
+    name: str,
+    low_mem: bool,
+    repo_id: str = "local/robomimic_threading_d0_joint_v3_256",
+    assets: AssetsConfig | None = None,
+    episode_indices_path: str | None = None,
+) -> TrainConfig:
+    model = _PI05_ROBOMIMIC_THREADING_JOINT_LORA_MODEL if low_mem else _PI05_ROBOMIMIC_THREADING_JOINT_FULL_MODEL
+    return TrainConfig(
+        name=name,
+        model=model,
+        data=LeRobotRobomimicDataConfig(
+            repo_id=repo_id,
+            task_config=robomimic_policy.THREADING_JOINT,
+            base_config=DataConfig(
+                prompt_from_task=True,
+                lerobot_episode_indices_path=episode_indices_path,
+            ),
+            assets=assets or AssetsConfig(),
+        ),
+        batch_size=32 if low_mem else 128,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000,
+            peak_lr=5e-5,
+            decay_steps=20_000,
+            decay_lr=5e-6,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=None if low_mem else 0.999,
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=20_000,
+        freeze_filter=model.get_freeze_filter() if low_mem else nnx.Nothing(),
+        save_interval=2_000,
+        keep_period=5_000,
+    )
+
+
 def _make_pi05_base_droid_jointpos_low_mem_config(
     *,
     name: str,
@@ -1425,6 +1593,28 @@ def _make_pi05_base_droid_wrench_on_hook_08242026_jointpos_filter_low_mem_config
         name=f"pi05_base_droid_wrench_on_hook_08242026_{name_tag}_{suffix}_low_mem_finetune",
         repo_id="skybhh19/droid_wrench_on_hook_08242026_jointpos",
         episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
+        assets=assets,
+    )
+
+
+def _make_pi05_base_droid_wrench_on_hook_08252026_jointpos_filter_low_mem_config(
+    suffix: str, filter_filename: str, *, assets: AssetsConfig | None = None, name_tag: str = "jointpos"
+) -> TrainConfig:
+    return _make_pi05_base_droid_jointpos_low_mem_config(
+        name=f"pi05_base_droid_wrench_on_hook_08252026_{name_tag}_{suffix}_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_08252026_jointpos",
+        episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
+        assets=assets,
+    )
+
+
+def _make_pi05_base_droid_tool_in_holder_08272026_jointpos_filter_low_mem_config(
+    suffix: str, filter_filename: str, *, assets: AssetsConfig | None = None, name_tag: str = "jointpos"
+) -> TrainConfig:
+    return _make_pi05_base_droid_jointpos_low_mem_config(
+        name=f"pi05_base_droid_tool_in_holder_08272026_{name_tag}_{suffix}_low_mem_finetune",
+        repo_id="skybhh19/droid_tool_in_holder_08272026_jointpos",
+        episode_indices_path="examples/droid/tool_in_holder/lerobot_filtering_keys/" + filter_filename,
         assets=assets,
     )
 
@@ -1633,6 +1823,113 @@ _CONFIGS = [
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         pytorch_weight_path="/path/to/your/pytorch_weight_path",
         num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="pi05_robomimic_threading_d0_osc_finetune",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_dim=32,
+            action_horizon=16,
+            discrete_state_input=True,
+        ),
+        data=LeRobotRobomimicDataConfig(
+            repo_id="local/robomimic_threading_d0_osc_v3_256",
+            task_config=robomimic_policy.THREADING_OSC,
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        batch_size=128,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000,
+            peak_lr=5e-5,
+            decay_steps=20_000,
+            decay_lr=5e-6,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=20_000,
+        save_interval=2_000,
+        keep_period=5_000,
+    ),
+    _make_pi05_robomimic_threading_osc_low_mem_config(
+        name="pi05_robomimic_threading_d0_osc_low_mem_finetune",
+    ),
+    _make_pi05_robomimic_threading_osc_low_mem_config(
+        name="pi05_robomimic_threading_d0_osc_label_full_low_mem_finetune",
+        episode_indices_path=(
+            "examples/robomimic/threading_osc/lerobot_filtering_keys/"
+            "threading_d0_osc_v3_256_label_full_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_OSC_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_osc_low_mem_config(
+        name="pi05_robomimic_threading_d0_osc_label_partial_low_mem_finetune",
+        episode_indices_path=(
+            "examples/robomimic/threading_osc/lerobot_filtering_keys/"
+            "threading_d0_osc_v3_256_label_partial_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_OSC_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d0_joint_finetune",
+        low_mem=False,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d0_joint_low_mem_finetune",
+        low_mem=True,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d0_joint_label_full_low_mem_finetune",
+        low_mem=True,
+        episode_indices_path=(
+            "examples/robomimic/threading_joint/lerobot_filtering_keys/"
+            "threading_d0_joint_v3_256_label_full_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d0_joint_label_partial_low_mem_finetune",
+        low_mem=True,
+        episode_indices_path=(
+            "examples/robomimic/threading_joint/lerobot_filtering_keys/"
+            "threading_d0_joint_v3_256_label_partial_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d0_joint_franka_stats_finetune",
+        low_mem=False,
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d0_joint_franka_stats_low_mem_finetune",
+        low_mem=True,
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d05_joint_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d05_joint_v2_256",
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d05_joint_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d05_joint_v2_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d05_joint/lerobot_filtering_keys/"
+            "threading_d05_joint_v2_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D05_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d05_joint_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d05_joint_v2_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d05_joint/lerobot_filtering_keys/"
+            "threading_d05_joint_v2_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D05_JOINT_ALL_DATA_ASSETS,
     ),
     #
     # Fine-tuning Aloha configs.
@@ -1857,8 +2154,22 @@ _CONFIGS = [
         assets=_PI05_BASE_FRANKA_ASSETS,
     ),
     _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_wrench_on_hook_08252026_jointpos_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_08252026_jointpos",
+    ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_wrench_on_hook_08252026_jointpos_franka_stats_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_08252026_jointpos",
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
         name="pi05_base_droid_tool_in_holder_08012026_jointpos_franka_stats_low_mem_finetune",
         repo_id="skybhh19/droid_tool_in_holder_08012026_jointpos",
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_tool_in_holder_08272026_jointpos_franka_stats_low_mem_finetune",
+        repo_id="skybhh19/droid_tool_in_holder_08272026_jointpos",
         assets=_PI05_BASE_FRANKA_ASSETS,
     ),
     *(
@@ -1899,6 +2210,28 @@ _CONFIGS = [
             name_tag="jointpos_franka_stats",
         )
         for suffix, filter_filename in _WRENCH_ON_HOOK_08242026_JOINTPOS_EPISODE_FILTER_CONFIGS
+    ),
+    *(
+        _make_pi05_base_droid_wrench_on_hook_08252026_jointpos_filter_low_mem_config(suffix, filter_filename)
+        for suffix, filter_filename in _WRENCH_ON_HOOK_08252026_JOINTPOS_EPISODE_FILTER_CONFIGS
+    ),
+    *(
+        _make_pi05_base_droid_wrench_on_hook_08252026_jointpos_filter_low_mem_config(
+            suffix,
+            filter_filename,
+            assets=_PI05_BASE_FRANKA_ASSETS,
+            name_tag="jointpos_franka_stats",
+        )
+        for suffix, filter_filename in _WRENCH_ON_HOOK_08252026_JOINTPOS_EPISODE_FILTER_CONFIGS
+    ),
+    *(
+        _make_pi05_base_droid_tool_in_holder_08272026_jointpos_filter_low_mem_config(
+            suffix,
+            filter_filename,
+            assets=_PI05_BASE_FRANKA_ASSETS,
+            name_tag="jointpos_franka_stats",
+        )
+        for suffix, filter_filename in _TOOL_IN_HOLDER_08272026_JOINTPOS_EPISODE_FILTER_CONFIGS
     ),
     TrainConfig(
         name="pi05_droid_pen_cup_finetune_0605",
@@ -2601,9 +2934,7 @@ _CONFIGS = [
         for suffix, filter_filename in _WRENCH_ON_HOOK_07292026_EPISODE_FILTER_CONFIGS
     ),
     *(
-        _make_pi05_droid_wrench_to_hook_filtered_combined_0617_filter_low_mem_config(
-            suffix, filter_filename
-        )
+        _make_pi05_droid_wrench_to_hook_filtered_combined_0617_filter_low_mem_config(suffix, filter_filename)
         for suffix, filter_filename in _WRENCH_TO_HOOK_FILTERED_COMBINED_0617_EPISODE_FILTER_CONFIGS
     ),
     *(
