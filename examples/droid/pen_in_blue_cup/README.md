@@ -14,7 +14,7 @@ Run the full conversion:
 
 ```bash
 source .venv/bin/activate
-export HF_LEROBOT_HOME=/iliad/u/tiangao/lerobot_datasets/
+export HF_LEROBOT_HOME=/iris/u/tiangao/lerobot_datasets/
 uv run examples/droid/pen_in_blue_cup/convert_pen_in_blue_cup_data_to_lerobot.py --overwrite
 ```
 
@@ -27,7 +27,7 @@ Use the same local LeRobot root when training:
 
 ```bash
 source .venv/bin/activate
-export HF_LEROBOT_HOME=/iliad/u/tiangao/lerobot_datasets/
+export HF_LEROBOT_HOME=/iris/u/tiangao/lerobot_datasets/
 ```
 
 Full fine-tune:

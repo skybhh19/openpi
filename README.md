@@ -182,7 +182,9 @@ If you want to embed a policy server call in your own robot runtime, we have a m
 
 ### More Examples
 
-We provide more examples for how to fine-tune and run inference with our models on the ALOHA platform in the following READMEs:
+Additional fine-tuning and inference examples are documented here:
+
+- [Robomimic Threading](examples/robomimic/README.md)
 - [ALOHA Simulator](examples/aloha_sim)
 - [ALOHA Real](examples/aloha_real)
 - [UR5](examples/ur5)

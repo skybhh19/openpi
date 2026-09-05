@@ -10,6 +10,7 @@ from openpi.policies import robomimic_policy as policy
     [
         (policy.THREADING_OSC, 9, 7),
         (policy.THREADING_JOINT, 8, 8),
+        (policy.THREADING_JOINT_ABSOLUTE, 8, 8),
     ],
 )
 def test_inputs_convert_images_and_preserve_task_data(task_config, state_dim, action_dim):
@@ -76,7 +77,26 @@ def test_joint_outputs_crop_padding_and_map_closure_to_robosuite_sign():
     np.testing.assert_allclose(output[:, 7], [-1.0, -0.5, 1.0])
 
 
-@pytest.mark.parametrize("task_config", [policy.THREADING_OSC, policy.THREADING_JOINT])
+def test_absolute_joint_outputs_preserve_arm_targets_and_map_gripper():
+    actions = np.zeros((2, 32), dtype=np.float32)
+    expected_arm_targets = np.asarray(
+        [[0.1, -0.2, 0.3, -1.8, 0.5, 2.0, 0.7], [0.2, -0.1, 0.4, -1.7, 0.6, 2.1, 0.8]],
+        dtype=np.float32,
+    )
+    actions[:, :7] = expected_arm_targets
+    actions[:, 7] = [0.0, 1.0]
+
+    output = policy.RobomimicOutputs(task_config=policy.THREADING_JOINT_ABSOLUTE)({"actions": actions})[
+        "actions"
+    ]
+
+    np.testing.assert_array_equal(output[:, :7], expected_arm_targets)
+    np.testing.assert_array_equal(output[:, 7], [-1.0, 1.0])
+
+
+@pytest.mark.parametrize(
+    "task_config", [policy.THREADING_OSC, policy.THREADING_JOINT, policy.THREADING_JOINT_ABSOLUTE]
+)
 def test_inputs_reject_wrong_state_dimension(task_config):
     image = np.zeros(task_config.image_shape, dtype=np.uint8)
     with pytest.raises(ValueError, match=rf"{task_config.state_dim}-D state"):

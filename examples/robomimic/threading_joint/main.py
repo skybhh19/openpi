@@ -43,6 +43,8 @@ class Args:
     host: str = "localhost"
     port: int = 8000
     dataset_path: str = str(DEFAULT_DATA_PATH)
+    dataset_episode_indices_path: str | None = None
+    episode_indices_path: str | None = None
     num_episodes: int = 20
     start_episode: int = 0
     seed: int = 0
@@ -53,15 +55,23 @@ class Args:
     output_path: str = "data/robomimic_threading_d0_joint_256_eval.json"
     video_dir: str | None = None
     video_fps: int = 20
+    concat_wrist_video: bool = False
     stop_on_success: bool = True
 
 
 MAX_MEAN_ADJACENT_PIXEL_DIFFERENCE = 40.0
 
 
-def make_environment_kwargs(env_args: dict[str, Any], *, max_steps: int, render_gpu_device_id: int, seed: int) -> dict:
+def make_environment_kwargs(
+    env_args: dict[str, Any],
+    *,
+    max_steps: int,
+    render_gpu_device_id: int,
+    seed: int,
+    metadata_validator=None,
+) -> dict:
     """Keep the recorded absolute controller while setting evaluation options."""
-    fps = validate_environment_metadata(env_args)
+    fps = (metadata_validator or validate_environment_metadata)(env_args)
     env_kwargs = copy.deepcopy(env_args["env_kwargs"])
     env_kwargs.update(
         {
@@ -108,6 +118,14 @@ def upright_rgb(image: np.ndarray) -> np.ndarray:
     return image[::-1].copy()
 
 
+def make_video_frame(observation: dict[str, np.ndarray], *, concat_wrist: bool) -> np.ndarray:
+    agentview = upright_rgb(observation["agentview_image"])
+    if not concat_wrist:
+        return agentview
+    wrist = upright_rgb(observation["robot0_eye_in_hand_image"])
+    return np.concatenate([agentview, wrist], axis=1)
+
+
 def validate_live_camera_images(observation: dict[str, np.ndarray]) -> None:
     """Fail fast on the high-frequency noise produced by a broken EGL context."""
     for camera_key in ("agentview_image", "robot0_eye_in_hand_image"):
@@ -139,7 +157,7 @@ def prepare_action_chunk(
     *,
     replan_steps: int,
 ) -> np.ndarray:
-    """Validate and clip absolute joint targets plus robosuite gripper sign."""
+    """Validate and clip policy-server output for the absolute robosuite controller."""
     if replan_steps <= 0:
         raise ValueError("replan_steps must be positive")
     actions = np.asarray(response.get("actions"), dtype=np.float64)
@@ -154,7 +172,9 @@ def prepare_action_chunk(
     action_high = np.asarray(action_high)
     if action_low.shape != (ACTION_DIM,) or action_high.shape != (ACTION_DIM,):
         raise ValueError(f"Expected an {ACTION_DIM}-D robosuite action spec")
-    # The server already applied AbsoluteActions to the arm and mapped closure to [-1, 1].
+    # Both policy modes expose the same evaluation contract. Delta-trained configs
+    # reconstruct absolute arm targets on the server; absolute-trained configs
+    # already emit them. Both map gripper closure to robosuite's [-1, 1] sign.
     return np.clip(actions, action_low, action_high)
 
 
@@ -175,18 +195,20 @@ def run_rollout(
     max_steps: int,
     replan_steps: int,
     stop_on_success: bool,
+    concat_wrist_video: bool = False,
     video_writer=None,
 ) -> dict[str, Any]:
     action_low, action_high = env.action_spec
     validate_live_camera_images(observation)
     env._check_success()  # noqa: SLF001 -- initialize task's displacement baseline.
     success = False
+    grasp_success = False
     final_success = False
     steps = 0
     inference_times = []
 
     if video_writer is not None:
-        video_writer.append_data(upright_rgb(observation["agentview_image"]))
+        video_writer.append_data(make_video_frame(observation, concat_wrist=concat_wrist_video))
 
     while steps < max_steps and not (stop_on_success and success):
         started = time.monotonic()
@@ -198,17 +220,23 @@ def run_rollout(
         for action in chunk:
             if steps >= max_steps:
                 break
-            # action[:7] is an absolute q target. Do not add it to the current joints again here.
+            # action[:7] is always an absolute q target, regardless of the model's training action space.
             # Robosuite's MjSim.render() assumes its EGL context is still current.
             # Explicitly rebind it because inference runs CUDA on the same GPU.
             ensure_offscreen_context_current(env)
             observation, reward, done, _ = env.step(action)
             validate_live_camera_images(observation)
             steps += 1
+            grasp_success = grasp_success or bool(
+                env._check_grasp(  # noqa: SLF001 -- standard robosuite bilateral-contact grasp check.
+                    gripper=env.robots[0].gripper,
+                    object_geoms=env.needle,
+                )
+            )
             final_success = bool(reward > 0.0 or env._check_success())  # noqa: SLF001
             success = success or final_success
             if video_writer is not None:
-                video_writer.append_data(upright_rgb(observation["agentview_image"]))
+                video_writer.append_data(make_video_frame(observation, concat_wrist=concat_wrist_video))
             if done or (stop_on_success and success):
                 break
         if done:
@@ -217,6 +245,8 @@ def run_rollout(
     debug = getattr(env, "_threading_success_debug", {})
     return {
         "success": bool(success),
+        "grasp_success": bool(grasp_success),
+        "insertion_success": bool(success),
         "final_success": bool(final_success),
         "steps": steps,
         "policy_queries": len(inference_times),
@@ -228,10 +258,17 @@ def run_rollout(
 def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     if not results:
         raise ValueError("Cannot summarize zero evaluation episodes")
+    grasp_results = [bool(result["grasp_success"]) for result in results if "grasp_success" in result]
+    insertion_results = [bool(result.get("insertion_success", result["success"])) for result in results]
     return {
         "episodes": len(results),
         "successes": sum(bool(result["success"]) for result in results),
         "success_rate": float(np.mean([result["success"] for result in results])),
+        "grasp_evaluated_episodes": len(grasp_results),
+        "grasp_successes": sum(grasp_results),
+        "grasp_success_rate": float(np.mean(grasp_results)) if grasp_results else None,
+        "insertion_successes": sum(insertion_results),
+        "insertion_success_rate": float(np.mean(insertion_results)),
         "mean_steps": float(np.mean([result["steps"] for result in results])),
     }
 
@@ -244,6 +281,7 @@ def load_resume_report(
     prompt: str,
     replan_steps: int,
     max_steps: int,
+    reset_source: str = "env.reset",
 ) -> dict[str, Any] | None:
     """Load and validate the existing prefix before appending new episodes."""
     if start_episode == 0:
@@ -253,7 +291,7 @@ def load_resume_report(
 
     report = json.loads(output_path.read_text())
     expected_fields = {
-        "reset_source": "env.reset",
+        "reset_source": reset_source,
         "seed": seed,
         "prompt": prompt,
         "replan_steps": replan_steps,
@@ -288,13 +326,39 @@ def _jsonable(value):
     return value
 
 
+def load_episode_indices(path: str | None, *, start_episode: int, num_episodes: int) -> list[int]:
+    if path is None:
+        return list(range(start_episode, start_episode + num_episodes))
+    if start_episode != 0:
+        raise ValueError("start_episode must be 0 when episode_indices_path is set")
+    episode_indices = json.loads(Path(path).read_text())
+    if not isinstance(episode_indices, list) or not all(isinstance(index, int) for index in episode_indices):
+        raise ValueError("episode_indices_path must contain a JSON list of integer episode indices")
+    if len(episode_indices) != num_episodes:
+        raise ValueError(
+            f"num_episodes={num_episodes}, but episode_indices_path contains {len(episode_indices)} indices"
+        )
+    if episode_indices != sorted(set(episode_indices)) or any(index < 0 for index in episode_indices):
+        raise ValueError("episode_indices_path indices must be non-negative, unique, and increasing")
+    return episode_indices
+
+
 def main(args: Args) -> None:
     if args.num_episodes <= 0 or args.max_steps <= 0 or args.video_fps <= 0:
         raise ValueError("num_episodes, max_steps, and video_fps must be positive")
     if args.start_episode < 0:
         raise ValueError("start_episode must be non-negative")
+    if args.episode_indices_path is not None and args.dataset_episode_indices_path is not None:
+        raise ValueError("episode_indices_path cannot be combined with dataset_episode_indices_path")
+
+    episode_indices = load_episode_indices(
+        args.episode_indices_path,
+        start_episode=args.start_episode,
+        num_episodes=args.num_episodes,
+    )
 
     output_path = Path(args.output_path)
+    reset_source = "dataset_initial_state" if args.dataset_episode_indices_path is not None else "env.reset"
     existing_report = load_resume_report(
         output_path,
         start_episode=args.start_episode,
@@ -302,12 +366,32 @@ def main(args: Args) -> None:
         prompt=args.prompt,
         replan_steps=args.replan_steps,
         max_steps=args.max_steps,
+        reset_source=reset_source,
     )
 
     dataset_path = Path(args.dataset_path).expanduser()
+    dataset_initial_states = None
     with h5py.File(dataset_path, "r") as dataset:
         env_args = json.loads(dataset["data"].attrs["env_args"])
         validate_environment_metadata(env_args)
+        if args.dataset_episode_indices_path is not None:
+            episode_indices = json.loads(Path(args.dataset_episode_indices_path).read_text())
+            if not isinstance(episode_indices, list) or not all(isinstance(index, int) for index in episode_indices):
+                raise ValueError("dataset_episode_indices_path must contain a JSON list of integer episode indices")
+            demo_names = sorted(
+                dataset["data"].keys(), key=lambda name: int(name.removeprefix("demo_"))
+            )
+            if any(index < 0 or index >= len(demo_names) for index in episode_indices):
+                raise ValueError("dataset episode index is out of range")
+            episode_stop = args.start_episode + args.num_episodes
+            if episode_stop > len(episode_indices):
+                raise ValueError(
+                    f"Requested episodes through {episode_stop}, but dataset index file has {len(episode_indices)} entries"
+                )
+            dataset_initial_states = [
+                (episode_indices[index], demo_names[episode_indices[index]], dataset[f"data/{demo_names[episode_indices[index]]}/states"][0])
+                for index in range(args.start_episode, episode_stop)
+            ]
 
     # Deferred so helper unit tests do not initialize MuJoCo / EGL.
     import imageio
@@ -330,20 +414,30 @@ def main(args: Args) -> None:
 
     results = [] if existing_report is None else list(existing_report["episodes"])
     try:
-        # Reconstruct the seeded reset sequence at the resume boundary. Threading
-        # and robot initialization consume env.rng during reset, not during step.
-        for _ in range(args.start_episode):
-            env.reset()
-
-        episode_stop = args.start_episode + args.num_episodes
-        for episode_index in tqdm.trange(
-            args.start_episode,
-            episode_stop,
+        next_reset_index = 0
+        for episode_index in tqdm.tqdm(
+            episode_indices,
             desc=f"Evaluating {env_args['env_name']} joint policy",
         ):
             # This is the closed-loop evaluation distribution: each trial is a
             # fresh environment reset sampled from the task's seeded RNG.
-            observation = env.reset()
+            observation = None
+            if dataset_initial_states is None:
+                while next_reset_index <= episode_index:
+                    observation = env.reset()
+                    next_reset_index += 1
+                assert observation is not None
+            else:
+                observation = env.reset()
+            source_episode = None
+            source_demo = None
+            if dataset_initial_states is not None:
+                source_episode, source_demo, initial_state = dataset_initial_states[episode_index - args.start_episode]
+                env.sim.set_state_from_flattened(initial_state)
+                env.sim.forward()
+                env._threading_initial_tripod_pos = None  # noqa: SLF001
+                env._threading_max_insert_progress = -np.inf  # noqa: SLF001
+                observation = env._get_observations(force_update=True)  # noqa: SLF001
             episode_name = f"episode_{episode_index:03d}"
             writer = None
             if video_dir is not None:
@@ -357,12 +451,16 @@ def main(args: Args) -> None:
                     max_steps=args.max_steps,
                     replan_steps=args.replan_steps,
                     stop_on_success=args.stop_on_success,
+                    concat_wrist_video=args.concat_wrist_video,
                     video_writer=writer,
                 )
             finally:
                 if writer is not None:
                     writer.close()
             result["episode"] = episode_index
+            if source_demo is not None:
+                result["source_episode"] = source_episode
+                result["source_demo"] = source_demo
             results.append(result)
             print(f"{episode_name}: success={result['success']} steps={result['steps']}", flush=True)
     finally:
@@ -370,15 +468,22 @@ def main(args: Args) -> None:
 
     report = {
         "environment_metadata_dataset": str(dataset_path.resolve()),
-        "reset_source": "env.reset",
+        "reset_source": reset_source,
+        "dataset_episode_indices_path": args.dataset_episode_indices_path,
+        "episode_indices_path": args.episode_indices_path,
         "evaluation_segments": (
-            ([{"start_episode": 0, "num_episodes": args.start_episode}] if existing_report is not None else [])
-            + [{"start_episode": args.start_episode, "num_episodes": args.num_episodes}]
+            [{"episode_indices": episode_indices}]
+            if args.episode_indices_path is not None
+            else (
+                ([{"start_episode": 0, "num_episodes": args.start_episode}] if existing_report is not None else [])
+                + [{"start_episode": args.start_episode, "num_episodes": args.num_episodes}]
+            )
         ),
         "seed": args.seed,
         "prompt": args.prompt,
         "replan_steps": args.replan_steps,
         "max_steps": args.max_steps,
+        "video_views": "agentview+wrist" if args.concat_wrist_video else "agentview",
         "action_space": "absolute Panda joint target (7) + robosuite gripper sign (1)",
         "environment": env_args,
         "summary": summarize_results(results),

@@ -13,7 +13,7 @@ from typing import Any
 ANNOTATIONS_CSV = Path("/iris/u/tiangao/wrench_on_hook_0722_labels.csv")
 OUTPUT_DIR = Path(__file__).with_name("lerobot_filtering_keys")
 RAW_DATA_DIR = Path("/iris/u/tiangao/wrench_on_hook_0722")
-LEROBOT_DATASET_DIR = Path("/iliad/u/tiangao/lerobot_datasets/skybhh19/droid_wrench_on_hook_07222026")
+LEROBOT_DATASET_DIR = Path("/iris/u/tiangao/lerobot_datasets/skybhh19/droid_wrench_on_hook_07222026")
 
 DATASET_NAME = "skybhh19/droid_wrench_on_hook_07222026"
 FILE_PREFIX = "wrench_on_hook_07222026"

@@ -60,6 +60,18 @@ THREADING_JOINT = RobomimicTaskConfig(
 )
 
 
+THREADING_JOINT_ABSOLUTE = RobomimicTaskConfig(
+    name="threading_joint_absolute",
+    default_prompt="Thread the needle through the ring",
+    state_dim=8,
+    action_dim=8,
+    # The converted dataset already stores absolute Panda joint targets. With no
+    # delta mask, training and inference preserve those targets end to end.
+    delta_action_mask=None,
+    gripper_output_transform=GripperOutputTransform.CLOSURE_TO_SIGN,
+)
+
+
 def make_robomimic_example(task_config: RobomimicTaskConfig) -> dict:
     """Create a random example matching a configured Robomimic task."""
     return {

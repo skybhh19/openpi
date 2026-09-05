@@ -11,7 +11,7 @@ Insert the tool into the holder
 The scripts are not tied to one dataset. For any DROID dataset with the same raw format, set these variables first and reuse the commands below. The values shown here are the 0801 example.
 
 ```bash
-export HF_LEROBOT_HOME=/iliad/u/tiangao/lerobot_datasets
+export HF_LEROBOT_HOME=/iris/u/tiangao/lerobot_datasets
 export RAW_DATA_DIR=/iris/u/tiangao/tool_in_holder_0801
 export DATASET_TAG=08012026
 export REPO_ID=skybhh19/droid_tool_in_holder_${DATASET_TAG}_jointpos

@@ -12,6 +12,7 @@ from openpi.training import config
 OSC_REPO_ID = "local/robomimic_threading_d0_osc_v3_256"
 JOINT_REPO_ID = "local/robomimic_threading_d0_joint_v3_256"
 D05_JOINT_REPO_ID = "local/robomimic_threading_d05_joint_v2_256"
+D05_JOINT_V3_REPO_ID = "local/robomimic_threading_d05_joint_v3_256"
 
 
 def _make_data_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, task_config):
@@ -84,6 +85,32 @@ def test_joint_data_pipeline_round_trips_delta_actions(monkeypatch, tmp_path):
     assert data_config.use_quantile_norm
 
 
+def test_absolute_joint_data_pipeline_preserves_absolute_actions(monkeypatch, tmp_path):
+    data_config = _make_data_config(tmp_path, monkeypatch, robomimic_policy.THREADING_JOINT_ABSOLUTE)
+    state = np.asarray([0.1, 0.2, 0.3, -1.9, 0.5, 2.1, 0.7, 0.25], dtype=np.float32)
+    absolute_actions = np.tile(state, (16, 1))
+    absolute_actions[:, :7] += np.linspace(0.01, 0.16, 16, dtype=np.float32)[:, None]
+    absolute_actions[:, 7] = 0.75
+    raw = {
+        "agentview_image": np.zeros((3, 256, 256), dtype=np.float32),
+        "eye_in_hand_image": np.zeros((3, 256, 256), dtype=np.float32),
+        "state": state,
+        "actions": absolute_actions.copy(),
+        "prompt": "thread it",
+    }
+
+    transformed = data_config.repack_transforms.inputs[0](raw)
+    for transform in data_config.data_transforms.inputs:
+        transformed = transform(transformed)
+    np.testing.assert_array_equal(transformed["actions"], absolute_actions)
+
+    model_output = {"state": state.copy(), "actions": np.pad(transformed["actions"], ((0, 0), (0, 24)))}
+    for transform in data_config.data_transforms.outputs:
+        model_output = transform(model_output)
+    np.testing.assert_array_equal(model_output["actions"][:, :7], absolute_actions[:, :7])
+    np.testing.assert_allclose(model_output["actions"][:, 7], 0.5)
+
+
 @pytest.mark.parametrize(
     ("name", "repo_id", "task_config", "low_mem", "asset_id"),
     [
@@ -132,6 +159,13 @@ def test_joint_data_pipeline_round_trips_delta_actions(monkeypatch, tmp_path):
         (
             "pi05_robomimic_threading_d05_joint_low_mem_finetune",
             D05_JOINT_REPO_ID,
+            robomimic_policy.THREADING_JOINT,
+            True,
+            None,
+        ),
+        (
+            "pi05_robomimic_threading_d05_joint_v3_low_mem_finetune",
+            D05_JOINT_V3_REPO_ID,
             robomimic_policy.THREADING_JOINT,
             True,
             None,
@@ -201,6 +235,20 @@ def test_registered_training_configs_match_the_data_and_finetuning_recipe(
             robomimic_policy.THREADING_JOINT,
             list(range(100)),
             "assets/pi05_robomimic_threading_d05_joint_low_mem_finetune",
+        ),
+        (
+            "pi05_robomimic_threading_d05_joint_v3_full_only_low_mem_finetune",
+            D05_JOINT_V3_REPO_ID,
+            robomimic_policy.THREADING_JOINT,
+            list(range(150, 300)),
+            "assets/pi05_robomimic_threading_d05_joint_v3_low_mem_finetune",
+        ),
+        (
+            "pi05_robomimic_threading_d05_joint_v3_partial_only_low_mem_finetune",
+            D05_JOINT_V3_REPO_ID,
+            robomimic_policy.THREADING_JOINT,
+            list(range(150)),
+            "assets/pi05_robomimic_threading_d05_joint_v3_low_mem_finetune",
         ),
     ],
 )

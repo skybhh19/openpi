@@ -14,7 +14,7 @@ from typing import Any
 ANNOTATIONS_CSV = Path(__file__).with_name("pen_in_cup_0727_labels.csv")
 OUTPUT_DIR = Path(__file__).with_name("lerobot_filtering_keys")
 RAW_DATA_DIR = Path("/iris/u/tiangao/pen_in_cup_0727")
-LEROBOT_DATASET_DIR = Path("/iliad/u/tiangao/lerobot_datasets/skybhh19/droid_pen_in_blue_cup_07272026")
+LEROBOT_DATASET_DIR = Path("/iris/u/tiangao/lerobot_datasets/skybhh19/droid_pen_in_blue_cup_07272026")
 
 DATASET_NAME = "skybhh19/droid_pen_in_blue_cup_07272026"
 FILE_PREFIX = "pen_in_blue_cup_07272026"

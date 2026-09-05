@@ -13,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 conversion = importlib.import_module("examples.robomimic.threading_d05_joint.convert_robomimic_data_to_lerobot")
 
-DEFAULT_DATASET_PATH = Path("/iliad/u/tiangao/lerobot_datasets/local/robomimic_threading_d05_joint_v2_256")
+DEFAULT_DATASET_PATH = Path("/iris/u/tiangao/lerobot_datasets/local/robomimic_threading_d05_joint_v2_256")
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "lerobot_filtering_keys"
 MASK_TO_OUTPUT_LABEL = {"full": "full_only", "partial": "partial_only"}
 

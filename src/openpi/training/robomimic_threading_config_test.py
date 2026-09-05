@@ -14,6 +14,20 @@ D05_JOINT_REPO_ID = "local/robomimic_threading_d05_joint_v2_256"
 
 
 @pytest.mark.parametrize(
+    "name",
+    [
+        train_config.name
+        for train_config in config._CONFIGS  # noqa: SLF001 - audit the complete registered config set.
+        if "robomimic_threading" in train_config.name
+    ],
+)
+def test_all_threading_configs_save_and_keep_checkpoints_every_5000_steps(name):
+    train_config = config.get_config(name)
+    assert train_config.save_interval == 5_000
+    assert train_config.keep_period == 5_000
+
+
+@pytest.mark.parametrize(
     ("name", "repo_id", "task_config", "low_mem"),
     [
         (

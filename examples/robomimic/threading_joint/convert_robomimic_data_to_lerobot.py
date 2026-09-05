@@ -123,7 +123,12 @@ def build_state(observation: h5py.Group | dict[str, np.ndarray], index: int) -> 
     return state
 
 
-def validate_episode(demo_name: str, episode: h5py.Group) -> int:
+def validate_episode(
+    demo_name: str,
+    episode: h5py.Group,
+    *,
+    max_abs_joint_target_error: float = 0.051,
+) -> int:
     """Validate schema and numeric evidence for absolute target semantics."""
     required = (
         "actions",
@@ -178,7 +183,7 @@ def validate_episode(demo_name: str, episode: h5py.Group) -> int:
     # radian-scale joint poses, not normalized [-1, 1] commands. The next state must move closer to the target.
     current_error = np.abs(actions[:, :JOINT_DIM] - current_joint)
     next_error = np.abs(actions[:, :JOINT_DIM] - next_joint)
-    if float(np.max(current_error)) > 0.051:
+    if float(np.max(current_error)) > max_abs_joint_target_error:
         raise ValueError(f"{demo_name} arm actions are not aligned absolute joint targets")
     if float(np.mean(next_error)) > float(np.mean(current_error)) + 1e-8:
         raise ValueError(f"{demo_name} next joint state does not move toward the commanded absolute target")

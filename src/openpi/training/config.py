@@ -1420,6 +1420,54 @@ _PI05_ROBOMIMIC_THREADING_D05_JOINT_ALL_DATA_ASSETS = AssetsConfig(
 )
 
 
+_PI05_ROBOMIMIC_THREADING_D05_JOINT_V3_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d05_joint_v3_low_mem_finetune",
+    asset_id="local/robomimic_threading_d05_joint_v3_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_D07_JOINT_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d07_joint_low_mem_finetune",
+    asset_id="local/robomimic_threading_d07_joint_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_D08_JOINT_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d08_joint_low_mem_finetune",
+    asset_id="local/robomimic_threading_d08_joint_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d06_hard_joint_low_mem_finetune",
+    asset_id="local/robomimic_threading_d06_hard_joint_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_ABSOLUTE_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d06_hard_joint_absolute_low_mem_finetune",
+    asset_id="local/robomimic_threading_d06_hard_joint_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d06_hard_joint_1000_low_mem_finetune",
+    asset_id="local/robomimic_threading_d06_hard_joint_1000_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ABSOLUTE_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d06_hard_joint_1000_absolute_low_mem_finetune",
+    asset_id="local/robomimic_threading_d06_hard_joint_1000_256",
+)
+
+
+_PI05_ROBOMIMIC_THREADING_D06_HARDER_JOINT_600_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d06_harder_joint_600_low_mem_finetune",
+    asset_id="local/robomimic_threading_d06_harder_joint_600_256",
+)
+
+
 _PI05_ROBOMIMIC_THREADING_OSC_LORA_MODEL = pi0_config.Pi0Config(
     pi05=True,
     paligemma_variant="gemma_2b_lora",
@@ -1478,7 +1526,7 @@ def _make_pi05_robomimic_threading_osc_low_mem_config(
         num_train_steps=20_000,
         freeze_filter=_PI05_ROBOMIMIC_THREADING_OSC_LORA_MODEL.get_freeze_filter(),
         ema_decay=None,
-        save_interval=2_000,
+        save_interval=5_000,
         keep_period=5_000,
     )
 
@@ -1488,8 +1536,10 @@ def _make_pi05_robomimic_threading_joint_config(
     name: str,
     low_mem: bool,
     repo_id: str = "local/robomimic_threading_d0_joint_v3_256",
+    task_config: robomimic_policy.RobomimicTaskConfig = robomimic_policy.THREADING_JOINT,
     assets: AssetsConfig | None = None,
     episode_indices_path: str | None = None,
+    num_train_steps: int = 20_000,
 ) -> TrainConfig:
     model = _PI05_ROBOMIMIC_THREADING_JOINT_LORA_MODEL if low_mem else _PI05_ROBOMIMIC_THREADING_JOINT_FULL_MODEL
     return TrainConfig(
@@ -1497,7 +1547,7 @@ def _make_pi05_robomimic_threading_joint_config(
         model=model,
         data=LeRobotRobomimicDataConfig(
             repo_id=repo_id,
-            task_config=robomimic_policy.THREADING_JOINT,
+            task_config=task_config,
             base_config=DataConfig(
                 prompt_from_task=True,
                 lerobot_episode_indices_path=episode_indices_path,
@@ -1514,9 +1564,9 @@ def _make_pi05_robomimic_threading_joint_config(
         optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
         ema_decay=None if low_mem else 0.999,
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
-        num_train_steps=20_000,
+        num_train_steps=num_train_steps,
         freeze_filter=model.get_freeze_filter() if low_mem else nnx.Nothing(),
-        save_interval=2_000,
+        save_interval=5_000,
         keep_period=5_000,
     )
 
@@ -1848,7 +1898,7 @@ _CONFIGS = [
         ema_decay=0.999,
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
         num_train_steps=20_000,
-        save_interval=2_000,
+        save_interval=5_000,
         keep_period=5_000,
     ),
     _make_pi05_robomimic_threading_osc_low_mem_config(
@@ -1930,6 +1980,354 @@ _CONFIGS = [
             "threading_d05_joint_v2_256_partial_only_episode_indices.json"
         ),
         assets=_PI05_ROBOMIMIC_THREADING_D05_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d05_joint_v3_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d05_joint_v3_256",
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d05_joint_v3_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d05_joint_v3_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d05_joint_v3/lerobot_filtering_keys/"
+            "threading_d05_joint_v3_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D05_JOINT_V3_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d05_joint_v3_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d05_joint_v3_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d05_joint_v3/lerobot_filtering_keys/"
+            "threading_d05_joint_v3_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D05_JOINT_V3_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d07_joint_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d07_joint_256",
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d07_joint_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d07_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d07_joint/lerobot_filtering_keys/"
+            "threading_d07_joint_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D07_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d07_joint_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d07_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d07_joint/lerobot_filtering_keys/"
+            "threading_d07_joint_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D07_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d08_joint_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d08_joint_256",
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d08_joint_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d08_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d08_joint/lerobot_filtering_keys/"
+            "threading_d08_joint_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D08_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d08_joint_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d08_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d08_joint/lerobot_filtering_keys/"
+            "threading_d08_joint_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D08_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d08_joint_30k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d08_joint_256",
+        assets=_PI05_ROBOMIMIC_THREADING_D08_JOINT_ALL_DATA_ASSETS,
+        num_train_steps=30_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d08_joint_full_only_30k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d08_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d08_joint/lerobot_filtering_keys/"
+            "threading_d08_joint_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D08_JOINT_ALL_DATA_ASSETS,
+        num_train_steps=30_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d08_joint_partial_only_30k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d08_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d08_joint/lerobot_filtering_keys/"
+            "threading_d08_joint_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D08_JOINT_ALL_DATA_ASSETS,
+        num_train_steps=30_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d08_joint_full_only_40k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d08_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d08_joint/lerobot_filtering_keys/"
+            "threading_d08_joint_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D08_JOINT_ALL_DATA_ASSETS,
+        num_train_steps=40_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d08_joint_full_only_50k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d08_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d08_joint/lerobot_filtering_keys/"
+            "threading_d08_joint_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D08_JOINT_ALL_DATA_ASSETS,
+        num_train_steps=50_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_256",
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_sampled_100_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_256_sampled_100_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_sampled_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_256_sampled_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_sampled_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_256_sampled_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_absolute_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_256",
+        task_config=robomimic_policy.THREADING_JOINT_ABSOLUTE,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_absolute_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_256",
+        task_config=robomimic_policy.THREADING_JOINT_ABSOLUTE,
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_ABSOLUTE_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_absolute_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_256",
+        task_config=robomimic_policy.THREADING_JOINT_ABSOLUTE,
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_ABSOLUTE_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint_1000/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_1000_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint_1000/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_1000_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_absolute_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        task_config=robomimic_policy.THREADING_JOINT_ABSOLUTE,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_absolute_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        task_config=robomimic_policy.THREADING_JOINT_ABSOLUTE,
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint_1000/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_1000_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ABSOLUTE_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_absolute_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        task_config=robomimic_policy.THREADING_JOINT_ABSOLUTE,
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint_1000/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_1000_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ABSOLUTE_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_30k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ALL_DATA_ASSETS,
+        num_train_steps=30_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_full_only_30k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint_1000/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_1000_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ALL_DATA_ASSETS,
+        num_train_steps=30_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_partial_only_30k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint_1000/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_1000_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ALL_DATA_ASSETS,
+        num_train_steps=30_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_absolute_30k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        task_config=robomimic_policy.THREADING_JOINT_ABSOLUTE,
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ABSOLUTE_ALL_DATA_ASSETS,
+        num_train_steps=30_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_absolute_full_only_30k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        task_config=robomimic_policy.THREADING_JOINT_ABSOLUTE,
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint_1000/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_1000_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ABSOLUTE_ALL_DATA_ASSETS,
+        num_train_steps=30_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_joint_1000_absolute_partial_only_30k_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_joint_1000_256",
+        task_config=robomimic_policy.THREADING_JOINT_ABSOLUTE,
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_joint_1000/lerobot_filtering_keys/"
+            "threading_d06_hard_joint_1000_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_JOINT_1000_ABSOLUTE_ALL_DATA_ASSETS,
+        num_train_steps=30_000,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_harder_joint_600_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_harder_joint_600_256",
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_harder_joint_600_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_harder_joint_600_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_harder_joint_600/lerobot_filtering_keys/"
+            "threading_d06_harder_joint_600_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARDER_JOINT_600_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_harder_joint_600_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_harder_joint_600_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_harder_joint_600/lerobot_filtering_keys/"
+            "threading_d06_harder_joint_600_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARDER_JOINT_600_ALL_DATA_ASSETS,
     ),
     #
     # Fine-tuning Aloha configs.

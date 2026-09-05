@@ -11,7 +11,7 @@ Hang the wrench on the hook
 For any DROID dataset with the same raw format, set these variables first and reuse the commands below. The values shown here are the 0801 example.
 
 ```bash
-export HF_LEROBOT_HOME=/iliad/u/tiangao/lerobot_datasets
+export HF_LEROBOT_HOME=/iris/u/tiangao/lerobot_datasets
 export RAW_DATA_DIR=/iris/u/tiangao/wrench_on_hook_0801
 export DATASET_TAG=08012026
 export REPO_ID=skybhh19/droid_wrench_on_hook_${DATASET_TAG}_jointpos

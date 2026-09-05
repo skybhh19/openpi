@@ -27,7 +27,7 @@ exclusive membership explicit. Filtered configs intentionally reuse the
 all-200 D05 normalization statistics.
 
 ```bash
-export HF_LEROBOT_HOME=/iliad/u/tiangao/lerobot_datasets
+export HF_LEROBOT_HOME=/iris/u/tiangao/lerobot_datasets
 uv run scripts/compute_norm_stats.py \
   --config-name pi05_robomimic_threading_d05_joint_low_mem_finetune
 ```

@@ -20,7 +20,7 @@ REPO_ROOT=${SLURM_SUBMIT_DIR:-$(pwd)}
 SCRIPT_DIR="$REPO_ROOT/examples/robomimic/threading_joint"
 cd "$REPO_ROOT"
 
-export HF_LEROBOT_HOME=${HF_LEROBOT_HOME:-/iliad/u/tiangao/lerobot_datasets}
+export HF_LEROBOT_HOME=${HF_LEROBOT_HOME:-/iris/u/tiangao/lerobot_datasets}
 export PORT=${PORT:-$((10000 + SLURM_JOB_ID % 50000))}
 
 exec "$SCRIPT_DIR/run_eval.sh" "$@"
