@@ -22,6 +22,43 @@ export LABEL_CSV=/path/to/tool_in_holder_${DATASET_TAG}_scores.csv
 
 For a new dataset, change `RAW_DATA_DIR`, `DATASET_TAG`, `REPO_ID`, and, if filtering is needed, `LABEL_CSV`. Keep the `_jointpos` suffix when the converted actions are joint-position targets.
 
+### 0827 combined dataset
+
+The 0827 dataset combines 89 trajectories from `/iris/u/tiangao/tool_holder_0827` and 119 trajectories
+from `/iris/u/tiangao/tool_holder_2_exteriors`. Both sources use camera `17471093` for the wrist and
+`23404442` for the exterior view. Camera `31078156` in the second source is deliberately ignored.
+
+```bash
+export HF_LEROBOT_HOME=/iris/u/tiangao/lerobot_datasets
+
+uv run examples/droid/tool_in_holder/convert_tool_in_holder_joint_position_data_to_lerobot.py \
+  --data-dir /iris/u/tiangao/tool_holder_0827 \
+  --additional-data-dirs /iris/u/tiangao/tool_holder_2_exteriors \
+  --repo-id skybhh19/droid_tool_in_holder_08272026_jointpos \
+  --wrist-camera-id 17471093 \
+  --exterior-camera-id 23404442
+```
+
+The converter writes `meta/droid_source_manifest.json` in the resulting dataset. It records the exact
+absolute raw trajectory path corresponding to each LeRobot episode index.
+
+The random subsets use one seed and shuffled episode order, so the 40% subset is contained in the 60%
+subset, which is contained in the 80% subset:
+
+```bash
+uv run examples/droid/tool_in_holder/build_random_episode_filters.py \
+  --dataset-dir "$HF_LEROBOT_HOME/skybhh19/droid_tool_in_holder_08272026_jointpos"
+```
+
+The Franka-stat training configs are:
+
+```text
+pi05_base_droid_tool_in_holder_08272026_jointpos_franka_stats_low_mem_finetune
+pi05_base_droid_tool_in_holder_08272026_jointpos_franka_stats_randompct80_low_mem_finetune
+pi05_base_droid_tool_in_holder_08272026_jointpos_franka_stats_randompct60_low_mem_finetune
+pi05_base_droid_tool_in_holder_08272026_jointpos_franka_stats_randompct40_low_mem_finetune
+```
+
 ## Data Conversion
 
 Use the joint-position converter. It writes actions as `[action/joint_position(7), action/gripper_position(1)]`.

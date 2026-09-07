@@ -96,6 +96,9 @@ ID, config names, label counts, and any task-specific camera alias:
 | Threading D05 v3 | [threading_d05_joint_v3](threading_d05_joint_v3/README.md) |
 | Threading D06 hard, 400 demos | [threading_d06_hard_joint](threading_d06_hard_joint/README.md) |
 | Threading D06 hard, 1,000 demos | [threading_d06_hard_joint_1000](threading_d06_hard_joint_1000/README.md) |
+| Threading D06 hard wrist-up, 200 demos | [threading_d06_hard_wristup_joint_200](threading_d06_hard_wristup_joint_200/README.md) |
+| Threading D06 hard wrist-up, 300 demos | [threading_d06_hard_wristup_joint_300](threading_d06_hard_wristup_joint_300/README.md) |
+| Threading D06 hard wrist-up, 400 demos | [threading_d06_hard_wristup_joint_400](threading_d06_hard_wristup_joint_400/README.md) |
 | Threading D06 harder, 600 demos | [threading_d06_harder_joint_600](threading_d06_harder_joint_600/README.md) |
 | Threading D07 | [threading_d07_joint](threading_d07_joint/README.md) |
 | Threading D08 | [threading_d08_joint](threading_d08_joint/README.md) |
