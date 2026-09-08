@@ -738,6 +738,9 @@ _PEN_IN_BLUE_CUP_09062026_EPISODE_FILTER_CONFIGS = (
     ("randompct80", "pen_in_blue_cup_09062026_randompct80_episode_indices.json"),
     ("randompct60", "pen_in_blue_cup_09062026_randompct60_episode_indices.json"),
     ("randompct40", "pen_in_blue_cup_09062026_randompct40_episode_indices.json"),
+    ("observabilitypct80", "pen_in_blue_cup_09062026_observabilitypct80_episode_indices.json"),
+    ("observabilitypct60", "pen_in_blue_cup_09062026_observabilitypct60_episode_indices.json"),
+    ("observabilitypct40", "pen_in_blue_cup_09062026_observabilitypct40_episode_indices.json"),
 )
 
 
@@ -886,6 +889,16 @@ _WRENCH_ON_HOOK_08252026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
     ("observabilitypct25", "wrench_on_hook_08252026_jointpos_observabilitypct25_episode_indices.json"),
     ("observabilitypct50", "wrench_on_hook_08252026_jointpos_observabilitypct50_episode_indices.json"),
     ("observabilitypct75", "wrench_on_hook_08252026_jointpos_observabilitypct75_episode_indices.json"),
+)
+
+
+_WRENCH_ON_HOOK_09072026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
+    ("randompct80", "wrench_on_hook_09072026_jointpos_randompct80_episode_indices.json"),
+    ("randompct60", "wrench_on_hook_09072026_jointpos_randompct60_episode_indices.json"),
+    ("randompct40", "wrench_on_hook_09072026_jointpos_randompct40_episode_indices.json"),
+    ("observabilitypct80", "wrench_on_hook_09072026_jointpos_observabilitypct80_episode_indices.json"),
+    ("observabilitypct60", "wrench_on_hook_09072026_jointpos_observabilitypct60_episode_indices.json"),
+    ("observabilitypct40", "wrench_on_hook_09072026_jointpos_observabilitypct40_episode_indices.json"),
 )
 
 
@@ -1538,6 +1551,12 @@ _PI05_ROBOMIMIC_THREADING_D06_HARD_WRISTUP_JOINT_400_ALL_DATA_ASSETS = AssetsCon
 )
 
 
+_PI05_ROBOMIMIC_THREADING_D06_HARD_WRISTUP_JOINT_600_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d06_hard_wristup_joint_600_low_mem_finetune",
+    asset_id="local/robomimic_threading_d06_hard_wristup_joint_600_256",
+)
+
+
 _PI05_ROBOMIMIC_THREADING_OSC_LORA_MODEL = pi0_config.Pi0Config(
     pi05=True,
     paligemma_variant="gemma_2b_lora",
@@ -1725,6 +1744,17 @@ def _make_pi05_base_droid_wrench_on_hook_08252026_jointpos_filter_low_mem_config
         repo_id="skybhh19/droid_wrench_on_hook_08252026_jointpos",
         episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
         assets=assets,
+    )
+
+
+def _make_pi05_base_droid_wrench_on_hook_09072026_jointpos_filter_low_mem_config(
+    suffix: str, filter_filename: str
+) -> TrainConfig:
+    return _make_pi05_base_droid_jointpos_low_mem_config(
+        name=f"pi05_base_droid_wrench_on_hook_09072026_jointpos_franka_stats_{suffix}_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_09072026_jointpos",
+        episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
+        assets=_PI05_BASE_FRANKA_ASSETS,
     )
 
 
@@ -2474,6 +2504,31 @@ _CONFIGS = [
         ),
         assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_WRISTUP_JOINT_400_ALL_DATA_ASSETS,
     ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_wristup_joint_600_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_wristup_joint_600_256",
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_wristup_joint_600_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_wristup_joint_600_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_wristup_joint_600/lerobot_filtering_keys/"
+            "threading_d06_hard_wristup_joint_600_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_WRISTUP_JOINT_600_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d06_hard_wristup_joint_600_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d06_hard_wristup_joint_600_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d06_hard_wristup_joint_600/lerobot_filtering_keys/"
+            "threading_d06_hard_wristup_joint_600_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_WRISTUP_JOINT_600_ALL_DATA_ASSETS,
+    ),
     #
     # Fine-tuning Aloha configs.
     #
@@ -2704,6 +2759,15 @@ _CONFIGS = [
         name="pi05_base_droid_wrench_on_hook_08252026_jointpos_franka_stats_low_mem_finetune",
         repo_id="skybhh19/droid_wrench_on_hook_08252026_jointpos",
         assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_wrench_on_hook_09072026_jointpos_franka_stats_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_09072026_jointpos",
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    *(
+        _make_pi05_base_droid_wrench_on_hook_09072026_jointpos_filter_low_mem_config(suffix, filter_filename)
+        for suffix, filter_filename in _WRENCH_ON_HOOK_09072026_JOINTPOS_EPISODE_FILTER_CONFIGS
     ),
     _make_pi05_base_droid_jointpos_low_mem_config(
         name="pi05_base_droid_tool_in_holder_08012026_jointpos_franka_stats_low_mem_finetune",

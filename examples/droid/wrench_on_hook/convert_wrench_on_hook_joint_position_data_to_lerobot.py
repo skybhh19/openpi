@@ -12,6 +12,7 @@ The resulting dataset is saved under $LEROBOT_HOME / <repo-id>.
 # ruff: noqa: E402, I001
 
 from pathlib import Path
+import json
 import shutil
 import sys
 
@@ -32,14 +33,27 @@ from convert_droid_data_to_lerobot import resize_image
 from convert_wrench_on_hook_data_to_lerobot import create_lerobot_dataset
 from convert_wrench_on_hook_data_to_lerobot import DEFAULT_DATA_DIR
 from convert_wrench_on_hook_data_to_lerobot import find_episode_paths
-from convert_wrench_on_hook_data_to_lerobot import get_camera_ids
 from convert_wrench_on_hook_data_to_lerobot import TASK_PROMPT
 
 DEFAULT_REPO_ID = "skybhh19/droid_wrench_on_hook_07222026_jointpos"
 
 
-def convert_step(step: dict) -> dict:
-    wrist_id, exterior_id = get_camera_ids(step)
+def get_selected_camera_ids(step: dict, wrist_camera_id: str, exterior_camera_id: str) -> tuple[str, str]:
+    camera_types = step["observation"]["camera_type"]
+    images = step["observation"].get("image", {})
+    missing = [camera_id for camera_id in (wrist_camera_id, exterior_camera_id) if camera_id not in images]
+    if missing:
+        raise ValueError(f"Selected camera images are missing: {missing}; available_images={sorted(images)}")
+    if camera_types.get(wrist_camera_id) != 0 or camera_types.get(exterior_camera_id) == 0:
+        raise ValueError(
+            f"Selected cameras have unexpected types: wrist={camera_types.get(wrist_camera_id)}, "
+            f"exterior={camera_types.get(exterior_camera_id)}"
+        )
+    return wrist_camera_id, exterior_camera_id
+
+
+def convert_step(step: dict, *, wrist_camera_id: str, exterior_camera_id: str) -> dict:
+    wrist_id, exterior_id = get_selected_camera_ids(step, wrist_camera_id, exterior_camera_id)
 
     exterior_image = resize_image(step["observation"]["image"][exterior_id][..., ::-1], (320, 180))
     wrist_image = resize_image(step["observation"]["image"][wrist_id][..., ::-1], (320, 180))
@@ -66,6 +80,8 @@ def main(
     data_dir: str = DEFAULT_DATA_DIR,
     *,
     repo_id: str = DEFAULT_REPO_ID,
+    wrist_camera_id: str = "17471093",
+    exterior_camera_id: str = "23404442",
     overwrite: bool = False,
     dry_run: bool = False,
     max_episodes: int | None = None,
@@ -93,8 +109,25 @@ def main(
     total_valid_frames = 0
     converted_episodes = 0
     skipped_episodes = 0
+    source_episodes = []
+    excluded_episodes = []
     for episode_path in tqdm(episode_paths, desc="Converting episodes"):
         recording_folderpath = episode_path.parent / "recordings" / "MP4"
+        required_videos = [
+            recording_folderpath / f"{camera_id}.mp4" for camera_id in (wrist_camera_id, exterior_camera_id)
+        ]
+        missing_videos = [str(path) for path in required_videos if not path.is_file()]
+        if missing_videos:
+            skipped_episodes += 1
+            excluded_episodes.append(
+                {
+                    "trajectory_path": str(episode_path.resolve()),
+                    "reason": "missing selected camera videos",
+                    "missing_videos": missing_videos,
+                }
+            )
+            print(f"Skipping {episode_path}: missing selected camera videos {missing_videos}")
+            continue
         trajectory = load_trajectory(
             str(episode_path), recording_folderpath=str(recording_folderpath), remove_skipped_steps=True
         )
@@ -108,9 +141,22 @@ def main(
             continue
 
         try:
-            converted_frames = [convert_step(step) for step in valid_steps]
+            converted_frames = [
+                convert_step(
+                    step,
+                    wrist_camera_id=wrist_camera_id,
+                    exterior_camera_id=exterior_camera_id,
+                )
+                for step in valid_steps
+            ]
         except ValueError as exc:
             skipped_episodes += 1
+            excluded_episodes.append(
+                {
+                    "trajectory_path": str(episode_path.resolve()),
+                    "reason": str(exc),
+                }
+            )
             print(f"Skipping {episode_path}: {exc}")
             continue
 
@@ -119,7 +165,35 @@ def main(
                 dataset.add_frame(frame)
             dataset.save_episode()
 
+        source_episodes.append(
+            {
+                "episode_index": converted_episodes,
+                "trajectory_path": str(episode_path.resolve()),
+                "raw_episode_dir": str(episode_path.parent.resolve()),
+                "frames": len(converted_frames),
+            }
+        )
         converted_episodes += 1
+
+    if dataset is not None:
+        manifest = {
+            "format_version": 1,
+            "repo_id": repo_id,
+            "task_prompt": TASK_PROMPT,
+            "fps": 15,
+            "source_roots": [str(data_dir_path.resolve())],
+            "wrist_camera_id": wrist_camera_id,
+            "exterior_camera_id": exterior_camera_id,
+            "ignored_camera_ids": ["31078156"],
+            "total_source_trajectories": len(episode_paths),
+            "total_episodes": converted_episodes,
+            "total_frames": sum(episode["frames"] for episode in source_episodes),
+            "episodes": source_episodes,
+            "excluded_episodes": excluded_episodes,
+        }
+        manifest_path = output_path / "meta" / "droid_source_manifest.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+        print(f"Wrote source manifest to {manifest_path}")
 
     print(
         f"Converted {converted_episodes} episodes with {total_valid_frames} valid frames "
