@@ -902,6 +902,26 @@ _WRENCH_ON_HOOK_09072026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
 )
 
 
+_WRENCH_ON_HOOK_09082026_ROUND2_JOINTPOS_EPISODE_FILTER_CONFIGS = (
+    ("randompct80", "wrench_on_hook_09082026_round2_jointpos_randompct80_episode_indices.json"),
+    ("randompct60", "wrench_on_hook_09082026_round2_jointpos_randompct60_episode_indices.json"),
+    ("randompct40", "wrench_on_hook_09082026_round2_jointpos_randompct40_episode_indices.json"),
+    ("observabilitypct80", "wrench_on_hook_09082026_round2_jointpos_observabilitypct80_episode_indices.json"),
+    ("observabilitypct60", "wrench_on_hook_09082026_round2_jointpos_observabilitypct60_episode_indices.json"),
+    ("observabilitypct40", "wrench_on_hook_09082026_round2_jointpos_observabilitypct40_episode_indices.json"),
+)
+
+
+_WRENCH_ON_HOOK_09112026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
+    ("randompct80", "wrench_on_hook_09112026_jointpos_randompct80_episode_indices.json"),
+    ("randompct60", "wrench_on_hook_09112026_jointpos_randompct60_episode_indices.json"),
+    ("randompct40", "wrench_on_hook_09112026_jointpos_randompct40_episode_indices.json"),
+    ("observabilitypct80", "wrench_on_hook_09112026_jointpos_observabilitypct80_episode_indices.json"),
+    ("observabilitypct60", "wrench_on_hook_09112026_jointpos_observabilitypct60_episode_indices.json"),
+    ("observabilitypct40", "wrench_on_hook_09112026_jointpos_observabilitypct40_episode_indices.json"),
+)
+
+
 _TOOL_IN_HOLDER_08272026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
     ("randompct80", "tool_in_holder_08272026_jointpos_randompct80_episode_indices.json"),
     ("randompct60", "tool_in_holder_08272026_jointpos_randompct60_episode_indices.json"),
@@ -1017,9 +1037,7 @@ def _make_pi05_droid_pen_in_blue_cup_09062026_low_mem_config(
         raise ValueError("suffix and filter_filename must either both be set or both be omitted")
     name_suffix = "" if suffix is None else f"_{suffix}"
     episode_indices_path = (
-        None
-        if filter_filename is None
-        else "examples/droid/pen_in_blue_cup/lerobot_filtering_keys/" + filter_filename
+        None if filter_filename is None else "examples/droid/pen_in_blue_cup/lerobot_filtering_keys/" + filter_filename
     )
     model = pi0_config.Pi0Config(
         pi05=True,
@@ -1557,6 +1575,12 @@ _PI05_ROBOMIMIC_THREADING_D06_HARD_WRISTUP_JOINT_600_ALL_DATA_ASSETS = AssetsCon
 )
 
 
+_PI05_ROBOMIMIC_THREADING_D09_HARDER_WRISTUP_GRIPPERFRICTION1P5_JOINT_ALL_DATA_ASSETS = AssetsConfig(
+    assets_dir="assets/pi05_robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_low_mem_finetune",
+    asset_id="local/robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_256",
+)
+
+
 _PI05_ROBOMIMIC_THREADING_OSC_LORA_MODEL = pi0_config.Pi0Config(
     pi05=True,
     paligemma_variant="gemma_2b_lora",
@@ -1753,6 +1777,28 @@ def _make_pi05_base_droid_wrench_on_hook_09072026_jointpos_filter_low_mem_config
     return _make_pi05_base_droid_jointpos_low_mem_config(
         name=f"pi05_base_droid_wrench_on_hook_09072026_jointpos_franka_stats_{suffix}_low_mem_finetune",
         repo_id="skybhh19/droid_wrench_on_hook_09072026_jointpos",
+        episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    )
+
+
+def _make_pi05_base_droid_wrench_on_hook_09082026_round2_jointpos_filter_low_mem_config(
+    suffix: str, filter_filename: str
+) -> TrainConfig:
+    return _make_pi05_base_droid_jointpos_low_mem_config(
+        name=f"pi05_base_droid_wrench_on_hook_09082026_round2_jointpos_franka_stats_{suffix}_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_09082026_round2_jointpos",
+        episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    )
+
+
+def _make_pi05_base_droid_wrench_on_hook_09112026_jointpos_filter_low_mem_config(
+    suffix: str, filter_filename: str
+) -> TrainConfig:
+    return _make_pi05_base_droid_jointpos_low_mem_config(
+        name=f"pi05_base_droid_wrench_on_hook_09112026_jointpos_franka_stats_{suffix}_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_09112026_jointpos",
         episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
         assets=_PI05_BASE_FRANKA_ASSETS,
     )
@@ -2529,6 +2575,50 @@ _CONFIGS = [
         ),
         assets=_PI05_ROBOMIMIC_THREADING_D06_HARD_WRISTUP_JOINT_600_ALL_DATA_ASSETS,
     ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_256",
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_full_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d09_harder_wristup_gripperfriction1p5_joint/lerobot_filtering_keys/"
+            "threading_d09_harder_wristup_gripperfriction1p5_joint_256_full_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D09_HARDER_WRISTUP_GRIPPERFRICTION1P5_JOINT_ALL_DATA_ASSETS,
+    ),
+    _make_pi05_robomimic_threading_joint_config(
+        name="pi05_robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_partial_only_low_mem_finetune",
+        low_mem=True,
+        repo_id="local/robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_256",
+        episode_indices_path=(
+            "examples/robomimic/threading_d09_harder_wristup_gripperfriction1p5_joint/lerobot_filtering_keys/"
+            "threading_d09_harder_wristup_gripperfriction1p5_joint_256_partial_only_episode_indices.json"
+        ),
+        assets=_PI05_ROBOMIMIC_THREADING_D09_HARDER_WRISTUP_GRIPPERFRICTION1P5_JOINT_ALL_DATA_ASSETS,
+    ),
+    *(
+        _make_pi05_robomimic_threading_joint_config(
+            name=(
+                "pi05_robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_"
+                f"{method}pct{percentage}_low_mem_finetune"
+            ),
+            low_mem=True,
+            repo_id="local/robomimic_threading_d09_harder_wristup_gripperfriction1p5_joint_256",
+            episode_indices_path=(
+                "examples/robomimic/threading_d09_harder_wristup_gripperfriction1p5_joint/"
+                "lerobot_filtering_keys/"
+                f"threading_d09_harder_wristup_gripperfriction1p5_joint_256_{method}pct{percentage}_"
+                "episode_indices.json"
+            ),
+            assets=_PI05_ROBOMIMIC_THREADING_D09_HARDER_WRISTUP_GRIPPERFRICTION1P5_JOINT_ALL_DATA_ASSETS,
+        )
+        for method in ("random", "observability")
+        for percentage in (90, 80, 70, 60, 50, 40, 30)
+    ),
     #
     # Fine-tuning Aloha configs.
     #
@@ -2764,6 +2854,24 @@ _CONFIGS = [
         name="pi05_base_droid_wrench_on_hook_09072026_jointpos_franka_stats_low_mem_finetune",
         repo_id="skybhh19/droid_wrench_on_hook_09072026_jointpos",
         assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_wrench_on_hook_09082026_round2_jointpos_franka_stats_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_09082026_round2_jointpos",
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    *(
+        _make_pi05_base_droid_wrench_on_hook_09082026_round2_jointpos_filter_low_mem_config(suffix, filter_filename)
+        for suffix, filter_filename in _WRENCH_ON_HOOK_09082026_ROUND2_JOINTPOS_EPISODE_FILTER_CONFIGS
+    ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_wrench_on_hook_09112026_jointpos_franka_stats_low_mem_finetune",
+        repo_id="skybhh19/droid_wrench_on_hook_09112026_jointpos",
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    *(
+        _make_pi05_base_droid_wrench_on_hook_09112026_jointpos_filter_low_mem_config(suffix, filter_filename)
+        for suffix, filter_filename in _WRENCH_ON_HOOK_09112026_JOINTPOS_EPISODE_FILTER_CONFIGS
     ),
     *(
         _make_pi05_base_droid_wrench_on_hook_09072026_jointpos_filter_low_mem_config(suffix, filter_filename)
