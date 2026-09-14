@@ -1886,8 +1886,41 @@ def _make_pi05_base_droid_tool_in_holder_08272026_jointpos_filter_low_mem_config
     )
 
 
+def _make_cup_hanging_09132026_config(checkpoint: str, subset: str) -> TrainConfig:
+    jointpos = checkpoint == "pi05_base"
+    space = "jointpos" if jointpos else "jointvel"
+    model = pi0_config.Pi0Config(
+        pi05=True, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora",
+        action_dim=32, action_horizon=16,
+    )
+    data_factory = LeRobotDROIDJointPositionDataConfig if jointpos else LeRobotDROIDDataConfig
+    filter_path = None if subset == "full" else (
+        f"examples/droid/cup_hanging/lerobot_filtering_keys/cup_hanging_09132026_{subset}_episode_indices.json"
+    )
+    return TrainConfig(
+        name=f"{checkpoint}_cup_hanging_09132026_{subset}_low_mem_finetune",
+        model=model,
+        data=data_factory(
+            repo_id=f"skybhh19/droid_cup_hanging_09132026_{space}",
+            base_config=DataConfig(prompt_from_task=True, lerobot_episode_indices_path=filter_path),
+            assets=AssetsConfig(
+                assets_dir=f"gs://openpi-assets/checkpoints/{checkpoint}/assets",
+                asset_id="franka" if jointpos else "droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader(f"gs://openpi-assets/checkpoints/{checkpoint}/params"),
+        num_train_steps=20_000, batch_size=32, freeze_filter=model.get_freeze_filter(),
+        ema_decay=None, save_interval=4_000, keep_period=4_000,
+    )
+
+
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
+    *(
+        _make_cup_hanging_09132026_config(checkpoint, subset)
+        for checkpoint in ("pi05_base", "pi05_droid")
+        for subset in ("full", "randompct60", "observabilitypct60", "observabilitypct30")
+    ),
     #
     # Inference Aloha configs.
     #
