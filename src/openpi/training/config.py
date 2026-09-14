@@ -744,6 +744,16 @@ _PEN_IN_BLUE_CUP_09062026_EPISODE_FILTER_CONFIGS = (
 )
 
 
+_PEN_IN_CUP_09122026_EPISODE_FILTER_CONFIGS = (
+    ("randompct80", "pen_in_cup_09122026_randompct80_episode_indices.json"),
+    ("randompct60", "pen_in_cup_09122026_randompct60_episode_indices.json"),
+    ("randompct40", "pen_in_cup_09122026_randompct40_episode_indices.json"),
+    ("observabilitypct80", "pen_in_cup_09122026_observabilitypct80_episode_indices.json"),
+    ("observabilitypct60", "pen_in_cup_09122026_observabilitypct60_episode_indices.json"),
+    ("observabilitypct40", "pen_in_cup_09122026_observabilitypct40_episode_indices.json"),
+)
+
+
 _PEN_IN_BLUE_CUP_07272026_SCORE_FILTER_CONFIGS = (
     (
         "gmm_k5_std1em02_cross_fit_score5pct25",
@@ -922,6 +932,16 @@ _WRENCH_ON_HOOK_09112026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
 )
 
 
+_SPATULA_ON_HOOK_09112026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
+    ("randompct80", "spatula_on_hook_09112026_jointpos_randompct80_episode_indices.json"),
+    ("randompct60", "spatula_on_hook_09112026_jointpos_randompct60_episode_indices.json"),
+    ("randompct40", "spatula_on_hook_09112026_jointpos_randompct40_episode_indices.json"),
+    ("observabilitypct80", "spatula_on_hook_09112026_jointpos_observabilitypct80_episode_indices.json"),
+    ("observabilitypct60", "spatula_on_hook_09112026_jointpos_observabilitypct60_episode_indices.json"),
+    ("observabilitypct40", "spatula_on_hook_09112026_jointpos_observabilitypct40_episode_indices.json"),
+)
+
+
 _TOOL_IN_HOLDER_08272026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
     ("randompct80", "tool_in_holder_08272026_jointpos_randompct80_episode_indices.json"),
     ("randompct60", "tool_in_holder_08272026_jointpos_randompct60_episode_indices.json"),
@@ -1051,6 +1071,46 @@ def _make_pi05_droid_pen_in_blue_cup_09062026_low_mem_config(
         model=model,
         data=LeRobotDROIDDataConfig(
             repo_id="skybhh19/droid_pen_in_blue_cup_09062026",
+            base_config=DataConfig(
+                prompt_from_task=True,
+                lerobot_episode_indices_path=episode_indices_path,
+            ),
+            assets=AssetsConfig(
+                assets_dir="gs://openpi-assets/checkpoints/pi05_droid/assets",
+                asset_id="droid",
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_droid/params"),
+        num_train_steps=20_000,
+        batch_size=32,
+        freeze_filter=model.get_freeze_filter(),
+        ema_decay=None,
+        save_interval=4_000,
+        keep_period=4_000,
+    )
+
+
+def _make_pi05_droid_pen_in_cup_09122026_low_mem_config(
+    suffix: str | None = None, filter_filename: str | None = None
+) -> TrainConfig:
+    if (suffix is None) != (filter_filename is None):
+        raise ValueError("suffix and filter_filename must either both be set or both be omitted")
+    name_suffix = "" if suffix is None else f"_{suffix}"
+    episode_indices_path = (
+        None if filter_filename is None else "examples/droid/pen_in_blue_cup/lerobot_filtering_keys/" + filter_filename
+    )
+    model = pi0_config.Pi0Config(
+        pi05=True,
+        paligemma_variant="gemma_2b_lora",
+        action_expert_variant="gemma_300m_lora",
+        action_dim=32,
+        action_horizon=16,
+    )
+    return TrainConfig(
+        name=f"pi05_droid_pen_in_cup_09122026{name_suffix}_low_mem_finetune",
+        model=model,
+        data=LeRobotDROIDDataConfig(
+            repo_id="skybhh19/droid_pen_in_cup_09122026",
             base_config=DataConfig(
                 prompt_from_task=True,
                 lerobot_episode_indices_path=episode_indices_path,
@@ -1799,6 +1859,17 @@ def _make_pi05_base_droid_wrench_on_hook_09112026_jointpos_filter_low_mem_config
     return _make_pi05_base_droid_jointpos_low_mem_config(
         name=f"pi05_base_droid_wrench_on_hook_09112026_jointpos_franka_stats_{suffix}_low_mem_finetune",
         repo_id="skybhh19/droid_wrench_on_hook_09112026_jointpos",
+        episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    )
+
+
+def _make_pi05_base_droid_spatula_on_hook_09112026_jointpos_filter_low_mem_config(
+    suffix: str, filter_filename: str
+) -> TrainConfig:
+    return _make_pi05_base_droid_jointpos_low_mem_config(
+        name=f"pi05_base_droid_spatula_on_hook_09112026_jointpos_franka_stats_{suffix}_low_mem_finetune",
+        repo_id="skybhh19/droid_spatula_on_hook_09112026_jointpos",
         episode_indices_path="examples/droid/wrench_on_hook/lerobot_filtering_keys/" + filter_filename,
         assets=_PI05_BASE_FRANKA_ASSETS,
     )
@@ -2873,6 +2944,15 @@ _CONFIGS = [
         _make_pi05_base_droid_wrench_on_hook_09112026_jointpos_filter_low_mem_config(suffix, filter_filename)
         for suffix, filter_filename in _WRENCH_ON_HOOK_09112026_JOINTPOS_EPISODE_FILTER_CONFIGS
     ),
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_droid_spatula_on_hook_09112026_jointpos_franka_stats_low_mem_finetune",
+        repo_id="skybhh19/droid_spatula_on_hook_09112026_jointpos",
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    *(
+        _make_pi05_base_droid_spatula_on_hook_09112026_jointpos_filter_low_mem_config(suffix, filter_filename)
+        for suffix, filter_filename in _SPATULA_ON_HOOK_09112026_JOINTPOS_EPISODE_FILTER_CONFIGS
+    ),
     *(
         _make_pi05_base_droid_wrench_on_hook_09072026_jointpos_filter_low_mem_config(suffix, filter_filename)
         for suffix, filter_filename in _WRENCH_ON_HOOK_09072026_JOINTPOS_EPISODE_FILTER_CONFIGS
@@ -3695,6 +3775,11 @@ _CONFIGS = [
     *(
         _make_pi05_droid_pen_in_blue_cup_09062026_low_mem_config(suffix, filter_filename)
         for suffix, filter_filename in _PEN_IN_BLUE_CUP_09062026_EPISODE_FILTER_CONFIGS
+    ),
+    _make_pi05_droid_pen_in_cup_09122026_low_mem_config(),
+    *(
+        _make_pi05_droid_pen_in_cup_09122026_low_mem_config(suffix, filter_filename)
+        for suffix, filter_filename in _PEN_IN_CUP_09122026_EPISODE_FILTER_CONFIGS
     ),
     #
     # ALOHA Sim configs. This config is used to demonstrate how to train on a simple simulated environment.

@@ -52,7 +52,7 @@ def get_selected_camera_ids(step: dict, wrist_camera_id: str, exterior_camera_id
     return wrist_camera_id, exterior_camera_id
 
 
-def convert_step(step: dict, *, wrist_camera_id: str, exterior_camera_id: str) -> dict:
+def convert_step(step: dict, *, wrist_camera_id: str, exterior_camera_id: str, task_prompt: str = TASK_PROMPT) -> dict:
     wrist_id, exterior_id = get_selected_camera_ids(step, wrist_camera_id, exterior_camera_id)
 
     exterior_image = resize_image(step["observation"]["image"][exterior_id][..., ::-1], (320, 180))
@@ -72,7 +72,7 @@ def convert_step(step: dict, *, wrist_camera_id: str, exterior_camera_id: str) -
             step["observation"]["robot_state"]["gripper_position"], dtype=np.float32
         ).reshape(1),
         "actions": np.concatenate([action_joint_position, action_gripper_position]).astype(np.float32, copy=False),
-        "task": TASK_PROMPT,
+        "task": task_prompt,
     }
 
 
@@ -82,6 +82,7 @@ def main(
     repo_id: str = DEFAULT_REPO_ID,
     wrist_camera_id: str = "17471093",
     exterior_camera_id: str = "23404442",
+    task_prompt: str = TASK_PROMPT,
     overwrite: bool = False,
     dry_run: bool = False,
     max_episodes: int | None = None,
@@ -146,6 +147,7 @@ def main(
                     step,
                     wrist_camera_id=wrist_camera_id,
                     exterior_camera_id=exterior_camera_id,
+                    task_prompt=task_prompt,
                 )
                 for step in valid_steps
             ]
@@ -179,7 +181,7 @@ def main(
         manifest = {
             "format_version": 1,
             "repo_id": repo_id,
-            "task_prompt": TASK_PROMPT,
+            "task_prompt": task_prompt,
             "fps": 15,
             "source_roots": [str(data_dir_path.resolve())],
             "wrist_camera_id": wrist_camera_id,

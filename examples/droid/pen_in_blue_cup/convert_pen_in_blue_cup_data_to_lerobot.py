@@ -167,40 +167,63 @@ def main(
     total_frames = 0
     total_valid_frames = 0
     converted_episodes = 0
+    skipped_episodes = 0
     source_episodes = []
+    excluded_episodes = []
     for episode_path in tqdm(episode_paths, desc="Converting episodes"):
         recording_folderpath = episode_path.parent / "recordings" / "MP4"
+        selected_camera_ids = () if wrist_camera_id is None else (wrist_camera_id, exterior_camera_id)
+        required_videos = [recording_folderpath / f"{camera_id}.mp4" for camera_id in selected_camera_ids]
+        missing_videos = [str(path) for path in required_videos if not path.is_file()]
+        if missing_videos:
+            skipped_episodes += 1
+            excluded_episodes.append(
+                {
+                    "trajectory_path": str(episode_path.resolve()),
+                    "reason": "missing selected camera videos",
+                    "missing_videos": missing_videos,
+                }
+            )
+            print(f"Skipping {episode_path}: missing selected camera videos {missing_videos}")
+            continue
         trajectory = load_trajectory(
             str(episode_path), recording_folderpath=str(recording_folderpath), remove_skipped_steps=True
         )
         if len(trajectory) == 0:
             continue
 
-        converted_frames = 0
-        for step in trajectory:
-            total_frames += 1
-            if not is_valid_transition(step):
-                continue
-            total_valid_frames += 1
+        total_frames += len(trajectory)
+        valid_steps = [step for step in trajectory if is_valid_transition(step)]
+        total_valid_frames += len(valid_steps)
+        if not valid_steps:
+            continue
 
-            converted_step = convert_step(
-                step, wrist_camera_id=wrist_camera_id, exterior_camera_id=exterior_camera_id
+        try:
+            converted_frames = [
+                convert_step(step, wrist_camera_id=wrist_camera_id, exterior_camera_id=exterior_camera_id)
+                for step in valid_steps
+            ]
+        except ValueError as exc:
+            skipped_episodes += 1
+            excluded_episodes.append(
+                {
+                    "trajectory_path": str(episode_path.resolve()),
+                    "reason": str(exc),
+                }
             )
-            if dataset is not None:
-                dataset.add_frame(converted_step)
-            converted_frames += 1
-
-        if converted_frames == 0:
+            print(f"Skipping {episode_path}: {exc}")
             continue
 
         if dataset is not None:
+            for frame in converted_frames:
+                dataset.add_frame(frame)
             dataset.save_episode()
         source_episodes.append(
             {
                 "episode_index": converted_episodes,
                 "trajectory_path": str(episode_path.resolve()),
                 "raw_episode_dir": str(episode_path.parent.resolve()),
-                "frames": converted_frames,
+                "frames": len(converted_frames),
             }
         )
         converted_episodes += 1
@@ -214,9 +237,12 @@ def main(
             "source_roots": [str(data_dir_path.resolve())],
             "wrist_camera_id": wrist_camera_id,
             "exterior_camera_id": exterior_camera_id,
+            "ignored_camera_ids": ["31078156"],
+            "total_source_trajectories": len(episode_paths),
             "total_episodes": converted_episodes,
             "total_frames": sum(episode["frames"] for episode in source_episodes),
             "episodes": source_episodes,
+            "excluded_episodes": excluded_episodes,
         }
         manifest_path = output_path / "meta" / "droid_source_manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
@@ -226,6 +252,8 @@ def main(
         f"Converted {converted_episodes} episodes with {total_valid_frames} valid frames "
         f"out of {total_frames} loaded frames."
     )
+    if skipped_episodes:
+        print(f"Skipped {skipped_episodes} episodes because required camera images were missing.")
 
     if push_to_hub:
         if dataset is None:
