@@ -1890,12 +1890,17 @@ def _make_cup_hanging_09132026_config(checkpoint: str, subset: str) -> TrainConf
     jointpos = checkpoint == "pi05_base"
     space = "jointpos" if jointpos else "jointvel"
     model = pi0_config.Pi0Config(
-        pi05=True, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora",
-        action_dim=32, action_horizon=16,
+        pi05=True,
+        paligemma_variant="gemma_2b_lora",
+        action_expert_variant="gemma_300m_lora",
+        action_dim=32,
+        action_horizon=16,
     )
     data_factory = LeRobotDROIDJointPositionDataConfig if jointpos else LeRobotDROIDDataConfig
-    filter_path = None if subset == "full" else (
-        f"examples/droid/cup_hanging/lerobot_filtering_keys/cup_hanging_09132026_{subset}_episode_indices.json"
+    filter_path = (
+        None
+        if subset == "full"
+        else (f"examples/droid/cup_hanging/lerobot_filtering_keys/cup_hanging_09132026_{subset}_episode_indices.json")
     )
     return TrainConfig(
         name=f"{checkpoint}_cup_hanging_09132026_{subset}_low_mem_finetune",
@@ -1909,13 +1914,50 @@ def _make_cup_hanging_09132026_config(checkpoint: str, subset: str) -> TrainConf
             ),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader(f"gs://openpi-assets/checkpoints/{checkpoint}/params"),
-        num_train_steps=20_000, batch_size=32, freeze_filter=model.get_freeze_filter(),
-        ema_decay=None, save_interval=4_000, keep_period=4_000,
+        num_train_steps=20_000,
+        batch_size=32,
+        freeze_filter=model.get_freeze_filter(),
+        ema_decay=None,
+        save_interval=4_000,
+        keep_period=4_000,
     )
 
 
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
+    _make_pi05_base_droid_jointpos_low_mem_config(
+        name="pi05_base_pumpkin_straw_09152026_full_low_mem_finetune",
+        repo_id="skybhh19/droid_pumpkin_straw_09152026_jointpos",
+        assets=_PI05_BASE_FRANKA_ASSETS,
+    ),
+    *(
+        dataclasses.replace(
+            _make_cup_hanging_09132026_config("pi05_base", subset),
+            name=f"pi05_base_cup_hanging_09152026_{subset}_low_mem_finetune",
+            data=LeRobotDROIDJointPositionDataConfig(
+                repo_id="skybhh19/droid_cup_hanging_09152026_jointpos",
+                base_config=DataConfig(
+                    prompt_from_task=True,
+                    lerobot_episode_indices_path=None
+                    if subset == "full"
+                    else (
+                        "examples/droid/cup_hanging_0915/lerobot_filtering_keys/"
+                        f"cup_hanging_09152026_{subset}_episode_indices.json"
+                    ),
+                ),
+                assets=_PI05_BASE_FRANKA_ASSETS,
+            ),
+        )
+        for subset in (
+            "full",
+            "randompct80",
+            "randompct60",
+            "randompct40",
+            "observabilitypct80",
+            "observabilitypct60",
+            "observabilitypct40",
+        )
+    ),
     *(
         _make_cup_hanging_09132026_config(checkpoint, subset)
         for checkpoint in ("pi05_base", "pi05_droid")
@@ -2720,7 +2762,7 @@ _CONFIGS = [
             ),
             assets=_PI05_ROBOMIMIC_THREADING_D09_HARDER_WRISTUP_GRIPPERFRICTION1P5_JOINT_ALL_DATA_ASSETS,
         )
-        for method in ("random", "observability")
+        for method in ("random", "observability", "deminf")
         for percentage in (90, 80, 70, 60, 50, 40, 30)
     ),
     #
