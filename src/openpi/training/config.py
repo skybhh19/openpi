@@ -1925,6 +1925,50 @@ def _make_cup_hanging_09132026_config(checkpoint: str, subset: str) -> TrainConf
 
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
+    *(
+        _make_pi05_base_droid_jointpos_low_mem_config(
+            name=f"pi05_base_cup_hanging_0913_09162026_{subset}_low_mem_finetune",
+            repo_id="skybhh19/droid_cup_hanging_0913_09162026_jointpos",
+            episode_indices_path=None
+            if subset == "full"
+            else (
+                "examples/droid/cup_hanging_0913_0916/lerobot_filtering_keys/"
+                f"cup_hanging_0913_09162026_{subset}_episode_indices.json"
+            ),
+            assets=_PI05_BASE_FRANKA_ASSETS,
+        )
+        for subset in (
+            "full",
+            "randompct80",
+            "randompct60",
+            "randompct40",
+            "observabilitypct80",
+            "observabilitypct60",
+            "observabilitypct40",
+        )
+    ),
+    *(
+        _make_pi05_base_droid_jointpos_low_mem_config(
+            name=f"pi05_base_cup_hanging_09162026_{subset}_low_mem_finetune",
+            repo_id="skybhh19/droid_cup_hanging_09162026_jointpos",
+            episode_indices_path=None
+            if subset == "full"
+            else (
+                "examples/droid/cup_hanging_0916/lerobot_filtering_keys/"
+                f"cup_hanging_09162026_{subset}_episode_indices.json"
+            ),
+            assets=_PI05_BASE_FRANKA_ASSETS,
+        )
+        for subset in (
+            "full",
+            "randompct80",
+            "randompct60",
+            "randompct40",
+            "observabilitypct80",
+            "observabilitypct60",
+            "observabilitypct40",
+        )
+    ),
     _make_pi05_base_droid_jointpos_low_mem_config(
         name="pi05_base_pumpkin_straw_09152026_full_low_mem_finetune",
         repo_id="skybhh19/droid_pumpkin_straw_09152026_jointpos",
