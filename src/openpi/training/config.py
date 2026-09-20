@@ -751,6 +751,9 @@ _PEN_IN_CUP_09122026_EPISODE_FILTER_CONFIGS = (
     ("observabilitypct80", "pen_in_cup_09122026_observabilitypct80_episode_indices.json"),
     ("observabilitypct60", "pen_in_cup_09122026_observabilitypct60_episode_indices.json"),
     ("observabilitypct40", "pen_in_cup_09122026_observabilitypct40_episode_indices.json"),
+    ("cmi_extrapct80", "pen_in_cup_09122026_cmi_extrapct80_episode_indices.json"),
+    ("cmi_extrapct60", "pen_in_cup_09122026_cmi_extrapct60_episode_indices.json"),
+    ("cmi_extrapct40", "pen_in_cup_09122026_cmi_extrapct40_episode_indices.json"),
 )
 
 
@@ -1927,6 +1930,20 @@ def _make_cup_hanging_09132026_config(checkpoint: str, subset: str) -> TrainConf
 _CONFIGS = [
     *(
         _make_pi05_base_droid_jointpos_low_mem_config(
+            name=f"pi05_base_pumpkin_straw_09182026_{subset}_low_mem_finetune",
+            repo_id="skybhh19/droid_pumpkin_straw_09182026_jointpos",
+            episode_indices_path=None
+            if subset == "full"
+            else (
+                "examples/droid/pumpkin_straw_0918/lerobot_filtering_keys/"
+                "pumpkin_straw_09182026_randompct60_episode_indices.json"
+            ),
+            assets=_PI05_BASE_FRANKA_ASSETS,
+        )
+        for subset in ("full", "randompct60")
+    ),
+    *(
+        _make_pi05_base_droid_jointpos_low_mem_config(
             name=f"pi05_base_cup_hanging_09142026_{subset}_low_mem_finetune",
             repo_id="skybhh19/droid_cup_hanging_09142026_jointpos",
             episode_indices_path=None
@@ -2032,6 +2049,10 @@ _CONFIGS = [
     *(
         _make_cup_hanging_09132026_config("pi05_base", subset)
         for subset in ("randompct80", "randompct40", "observabilitypct80", "observabilitypct40")
+    ),
+    *(
+        _make_cup_hanging_09132026_config("pi05_base", subset)
+        for subset in ("cmi_extrapct80", "cmi_extrapct60", "cmi_extrapct40")
     ),
     #
     # Inference Aloha configs.
@@ -2832,7 +2853,7 @@ _CONFIGS = [
             ),
             assets=_PI05_ROBOMIMIC_THREADING_D09_HARDER_WRISTUP_GRIPPERFRICTION1P5_JOINT_ALL_DATA_ASSETS,
         )
-        for method in ("random", "observability", "deminf")
+        for method in ("random", "observability", "deminf", "score16", "score17")
         for percentage in (90, 80, 70, 60, 50, 40, 30)
     ),
     #
