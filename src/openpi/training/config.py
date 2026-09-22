@@ -946,6 +946,9 @@ _SPATULA_ON_HOOK_09112026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
 
 
 _TOOL_IN_HOLDER_08272026_JOINTPOS_EPISODE_FILTER_CONFIGS = (
+    ("deminfpct80", "tool_in_holder_08272026_jointpos_deminfpct80_episode_indices.json"),
+    ("deminfpct60", "tool_in_holder_08272026_jointpos_deminfpct60_episode_indices.json"),
+    ("deminfpct40", "tool_in_holder_08272026_jointpos_deminfpct40_episode_indices.json"),
     ("randompct80", "tool_in_holder_08272026_jointpos_randompct80_episode_indices.json"),
     ("randompct60", "tool_in_holder_08272026_jointpos_randompct60_episode_indices.json"),
     ("randompct40", "tool_in_holder_08272026_jointpos_randompct40_episode_indices.json"),
@@ -1130,6 +1133,27 @@ def _make_pi05_droid_pen_in_cup_09122026_low_mem_config(
         ema_decay=None,
         save_interval=4_000,
         keep_period=4_000,
+    )
+
+
+def _make_pi05_droid_pen_in_cup_09212026_low_mem_config(subset: str) -> TrainConfig:
+    # Preserve the established pi05_droid velocity recipe and pretrained DROID stats.
+    base = _make_pi05_droid_pen_in_cup_09122026_low_mem_config()
+    indices_path = (
+        None
+        if subset == "full"
+        else f"examples/droid/pen_in_cup_0921/lerobot_filtering_keys/pen_in_cup_09212026_{subset}_episode_indices.json"
+    )
+    return dataclasses.replace(
+        base,
+        name=f"pi05_droid_pen_in_cup_09212026_{subset}_low_mem_finetune",
+        data=dataclasses.replace(
+            base.data,
+            repo_id="skybhh19/droid_pen_in_cup_09212026",
+            base_config=dataclasses.replace(base.data.base_config, lerobot_episode_indices_path=indices_path),
+        ),
+        save_interval=20_000,
+        keep_period=None,
     )
 
 
@@ -1881,12 +1905,16 @@ def _make_pi05_base_droid_spatula_on_hook_09112026_jointpos_filter_low_mem_confi
 def _make_pi05_base_droid_tool_in_holder_08272026_jointpos_filter_low_mem_config(
     suffix: str, filter_filename: str, *, assets: AssetsConfig | None = None, name_tag: str = "jointpos"
 ) -> TrainConfig:
-    return _make_pi05_base_droid_jointpos_low_mem_config(
+    config = _make_pi05_base_droid_jointpos_low_mem_config(
         name=f"pi05_base_droid_tool_in_holder_08272026_{name_tag}_{suffix}_low_mem_finetune",
         repo_id="skybhh19/droid_tool_in_holder_08272026_jointpos",
         episode_indices_path="examples/droid/tool_in_holder/lerobot_filtering_keys/" + filter_filename,
         assets=assets,
     )
+    if suffix in ("deminfpct80", "deminfpct60", "deminfpct40"):
+        # train.py always saves the last step (19999); skip all intermediate saves.
+        return dataclasses.replace(config, save_interval=config.num_train_steps, keep_period=None)
+    return config
 
 
 def _make_cup_hanging_09132026_config(checkpoint: str, subset: str) -> TrainConfig:
@@ -1929,6 +1957,44 @@ def _make_cup_hanging_09132026_config(checkpoint: str, subset: str) -> TrainConf
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
     *(
+        _make_pi05_droid_pen_in_cup_09212026_low_mem_config(subset)
+        for subset in (
+            "full",
+            "observabilitypct80",
+            "observabilitypct70",
+            "observabilitypct60",
+            "randompct80",
+            "randompct70",
+            "randompct60",
+        )
+    ),
+    *(
+        dataclasses.replace(
+            _make_pi05_base_droid_jointpos_low_mem_config(
+                name=f"pi05_base_pumpkin_straw_09212026_{subset}_low_mem_finetune",
+                repo_id="skybhh19/droid_pumpkin_straw_09212026_jointpos",
+                episode_indices_path=None
+                if subset == "full"
+                else (
+                    "examples/droid/pumpkin_straw_0921/lerobot_filtering_keys/"
+                    f"pumpkin_straw_09212026_{subset}_episode_indices.json"
+                ),
+                assets=_PI05_BASE_FRANKA_ASSETS,
+                save_interval=20_000,
+            ),
+            keep_period=None,
+        )
+        for subset in (
+            "full",
+            "observabilitypct80",
+            "observabilitypct70",
+            "observabilitypct60",
+            "randompct80",
+            "randompct70",
+            "randompct60",
+        )
+    ),
+    *(
         _make_pi05_base_droid_jointpos_low_mem_config(
             name=f"pi05_base_pumpkin_straw_09182026_{subset}_low_mem_finetune",
             repo_id="skybhh19/droid_pumpkin_straw_09182026_jointpos",
@@ -1936,11 +2002,19 @@ _CONFIGS = [
             if subset == "full"
             else (
                 "examples/droid/pumpkin_straw_0918/lerobot_filtering_keys/"
-                "pumpkin_straw_09182026_randompct60_episode_indices.json"
+                f"pumpkin_straw_09182026_{subset}_episode_indices.json"
             ),
             assets=_PI05_BASE_FRANKA_ASSETS,
         )
-        for subset in ("full", "randompct60")
+        for subset in (
+            "full",
+            "randompct80",
+            "randompct60",
+            "randompct40",
+            "observabilitypct80",
+            "observabilitypct60",
+            "observabilitypct40",
+        )
     ),
     *(
         _make_pi05_base_droid_jointpos_low_mem_config(
@@ -2053,6 +2127,14 @@ _CONFIGS = [
     *(
         _make_cup_hanging_09132026_config("pi05_base", subset)
         for subset in ("cmi_extrapct80", "cmi_extrapct60", "cmi_extrapct40")
+    ),
+    *(
+        dataclasses.replace(
+            _make_cup_hanging_09132026_config("pi05_base", subset),
+            save_interval=20_000,
+            keep_period=None,
+        )
+        for subset in ("deminfpct80", "deminfpct60", "deminfpct40")
     ),
     #
     # Inference Aloha configs.
@@ -2853,7 +2935,7 @@ _CONFIGS = [
             ),
             assets=_PI05_ROBOMIMIC_THREADING_D09_HARDER_WRISTUP_GRIPPERFRICTION1P5_JOINT_ALL_DATA_ASSETS,
         )
-        for method in ("random", "observability", "deminf", "score16", "score17")
+        for method in ("random", "observability", "deminf", "score16", "score17", "score16_std0p03", "score17_std0p03")
         for percentage in (90, 80, 70, 60, 50, 40, 30)
     ),
     #

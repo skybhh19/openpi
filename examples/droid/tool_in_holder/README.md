@@ -24,6 +24,8 @@ For a new dataset, change `RAW_DATA_DIR`, `DATASET_TAG`, `REPO_ID`, and, if filt
 
 ### 0827 combined dataset
 
+For DemInf score-based 80/60/40% subsets, see [the DemInf pipeline](README_deminf_0827.md).
+
 The 0827 dataset combines 89 trajectories from `/iris/u/tiangao/tool_holder_0827` and 119 trajectories
 from `/iris/u/tiangao/tool_holder_2_exteriors`. Both sources use camera `17471093` for the wrist and
 `23404442` for the exterior view. Camera `31078156` in the second source is deliberately ignored.
